@@ -1,0 +1,5 @@
+node_modules/
+dist/
+reports/playwright/
+reports/jscpd/compiled/
+test-results/

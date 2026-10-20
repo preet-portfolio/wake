@@ -1,0 +1,95 @@
+:root {
+    --paper: #f2eee4;
+    --sheet: #faf8f3;
+    --ink: #1c1b18;
+    --mute: #857f72;
+    --rule: #d8d1c2;
+    --red: #d4462a;
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font: 12px/1.45 var(--mono); }
+button, select, input { font: inherit; color: inherit; }
+a { color: inherit; }
+
+.app { display: grid; grid-template-columns: 1fr 340px; height: 100vh; }
+.stage { position: relative; display: grid; place-items: center; padding: 28px; overflow: hidden; }
+#art { width: min(100%, calc(100vh - 56px)); aspect-ratio: 1; background: var(--sheet); box-shadow: 0 1px 2px #0001, 0 12px 40px -18px #0003; touch-action: none; }
+.stage.drawing #art { cursor: crosshair; outline: 2px dashed var(--red); }
+.draw-hint { display: none; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--red); color: var(--sheet); padding: 3px 10px; }
+.stage.drawing .draw-hint { display: block; }
+.fps { position: absolute; top: 8px; left: 8px; background: var(--ink); color: var(--sheet); padding: 2px 8px; }
+
+.handles { position: absolute; inset: 0; pointer-events: none; }
+.handle { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid var(--ink); background: var(--sheet); pointer-events: auto; cursor: grab; touch-action: none; opacity: 0; transition: opacity .2s; }
+.handle.main { border-color: var(--red); z-index: 2; }
+.handle span { position: absolute; left: 16px; top: -4px; white-space: nowrap; background: var(--ink); color: var(--sheet); padding: 0 5px; font-size: 10px; opacity: 0; }
+.stage:hover .handle, .handle:active { opacity: 1; }
+.handle:hover span, .handle:active span { opacity: 1; }
+
+.panel { display: flex; flex-direction: column; border-left: 1px solid var(--rule); background: var(--paper); min-height: 0; }
+.panel header { padding: 18px 18px 10px; border-bottom: 1px solid var(--rule); }
+.panel h1 { font: italic 46px/0.9 var(--serif); margin: 0; letter-spacing: -0.5px; }
+.panel header p { margin: 4px 0 0; color: var(--mute); }
+.panel nav { margin-top: 6px; }
+.panel-body { flex: 1; overflow-y: auto; padding: 4px 18px 18px; }
+section { padding: 12px 0 10px; border-bottom: 1px solid var(--rule); }
+section h3 { font: 22px var(--serif); margin: 0 0 6px; }
+.hint { color: var(--mute); margin: 0 0 8px; }
+
+.knob { display: grid; grid-template-columns: 92px 1fr 52px; align-items: center; gap: 8px; margin: 3px 0; }
+.knob span { color: var(--mute); }
+.knob output { text-align: right; font-variant-numeric: tabular-nums; }
+.knob.big span { color: var(--ink); }
+input[type=range] { -webkit-appearance: none; appearance: none; height: 18px; background: transparent; width: 100%; }
+input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--rule); }
+input[type=range]::-moz-range-track { height: 2px; background: var(--rule); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 3px; height: 16px; margin-top: -7px; background: var(--red); }
+input[type=range]::-moz-range-thumb { width: 3px; height: 16px; border: 0; border-radius: 0; background: var(--red); }
+input[type=range]:focus-visible { outline: 1px dotted var(--red); }
+
+.seg { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.seg button, .actions button, .dice, .swap, .block-head button { background: none; border: 1px solid var(--rule); padding: 3px 8px; cursor: pointer; }
+.seg button.on { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+button:hover { border-color: var(--ink); }
+
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.block { border: 1px solid var(--ink); background: var(--sheet); padding: 6px 8px; }
+.block.off { opacity: .45; }
+.block.over { outline: 2px solid var(--red); }
+.block-head { display: flex; align-items: center; gap: 6px; }
+.grip { cursor: grab; color: var(--mute); user-select: none; }
+.block-head .name { border: 0 !important; padding: 0 !important; font: 18px var(--serif) !important; }
+.block-head .name i { color: var(--red); font-style: normal; font-family: var(--mono); font-size: 12px; }
+.tools { margin-left: auto; display: flex; gap: 2px; }
+.block-head .tools button { padding: 0 5px; border-color: transparent; }
+.more { border-top: 1px dashed var(--rule); margin-top: 6px; padding-top: 4px; }
+.signals { margin: 2px 0 8px; }
+.signals em { display: block; font-style: normal; color: var(--mute); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.signal { display: grid; grid-template-columns: 70px 1fr 54px 54px; gap: 4px; margin: 2px 0; align-items: center; }
+.signal span { color: var(--mute); font-size: 11px; }
+.signal select, .signal input, .add { border: 1px solid var(--rule); background: var(--sheet); padding: 1px 3px; min-width: 0; }
+.add { width: 100%; margin-top: 8px; padding: 5px; cursor: pointer; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row .knob { flex: 1; }
+.check { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.colour { display: flex; gap: 6px; align-items: center; }
+.colour input { width: 30px; height: 22px; padding: 0; border: 1px solid var(--rule); background: none; }
+
+.panel footer { border-top: 1px solid var(--rule); padding: 10px 18px 12px; }
+.budget { padding: 4px 8px; margin-bottom: 8px; border-left: 3px solid var(--rule); }
+.budget.ok { border-color: #3f7d4e; }
+.budget.over { border-color: var(--red); }
+.actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.actions button { flex: 1; }
+.credit { color: var(--mute); margin: 8px 0 0; font-size: 11px; }
+
+@media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100vh; }
+    .stage { padding: 16px; }
+    #art { width: 100%; }
+    .handle { opacity: 1; }
+    .panel { border-left: 0; border-top: 1px solid var(--rule); }
+    .panel-body { overflow: visible; }
+}

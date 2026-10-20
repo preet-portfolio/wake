@@ -1,0 +1,54 @@
+{
+ "device": "Pixel 7 emulation (412x915 @2.625x, capped to 2x in app)",
+ "note": "emulated, not a real phone",
+ "results": {
+  "gpu · cpu ÷1": {
+   "samples": [
+    60,
+    60,
+    61,
+    61,
+    61
+   ],
+   "median": 61,
+   "segmentsPerStep": 20000,
+   "renderer": "ANGLE (Apple, Apple M1, OpenGL 4.1)"
+  },
+  "gpu · cpu ÷4": {
+   "samples": [
+    60,
+    60,
+    60,
+    61,
+    61
+   ],
+   "median": 60,
+   "segmentsPerStep": 20000,
+   "renderer": "ANGLE (Apple, Apple M1, OpenGL 4.1)"
+  },
+  "software-gl · cpu ÷1": {
+   "samples": [
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   "median": 2,
+   "segmentsPerStep": 20000,
+   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "software-gl · cpu ÷4": {
+   "samples": [
+    3,
+    4,
+    4,
+    5,
+    5
+   ],
+   "median": 4,
+   "segmentsPerStep": 20000,
+   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+  }
+ }
+}

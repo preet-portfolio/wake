@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wake — how it was made</title>
+<meta name="description" content="Case study: building wake, an instrument for drawing the trace a line leaves as it moves through time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root { --paper:#f2eee4; --sheet:#faf8f3; --ink:#1c1b18; --mute:#7d776b; --rule:#d8d1c2; --red:#d4462a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 "Instrument Serif", Georgia, serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
+.mono, nav, figcaption, .k, table { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; }
+nav { display: flex; justify-content: space-between; color: var(--mute); }
+nav a { color: inherit; }
+h1 { font-style: italic; font-weight: 400; font-size: clamp(48px, 9vw, 92px); line-height: .9; margin: 40px 0 8px; letter-spacing: -1px; }
+.lede { font-size: 24px; line-height: 1.35; margin: 0 0 36px; }
+h2 { font-weight: 400; font-size: 34px; margin: 64px 0 10px; }
+h2 .n { color: var(--red); font-family: "IBM Plex Mono", monospace; font-size: 14px; vertical-align: middle; margin-right: 10px; }
+p { margin: 0 0 16px; font-size: 20px; }
+figure { margin: 26px 0 30px; }
+figure img { display: block; width: 100%; height: auto; background: var(--sheet); box-shadow: 0 1px 2px #0001, 0 14px 40px -24px #0004; }
+figure.wide { margin-left: -6vw; margin-right: -6vw; }
+@media (max-width: 900px) { figure.wide { margin-left: 0; margin-right: 0; } }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 560px) { .pair, .trio { grid-template-columns: 1fr; } }
+figcaption { color: var(--mute); margin-top: 8px; line-height: 1.5; }
+.callout { border-left: 3px solid var(--red); padding: 4px 0 4px 16px; margin: 22px 0; }
+.k { background: var(--ink); color: var(--sheet); padding: 1px 6px; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0 24px; }
+td, th { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--mute); font-weight: 400; }
+td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
+.statement { font-style: italic; font-size: clamp(28px, 4.5vw, 40px); line-height: 1.2; margin: 70px 0 20px; }
+.cta { display: inline-block; margin-top: 18px; background: var(--ink); color: var(--sheet); padding: 10px 18px; text-decoration: none; font-family: "IBM Plex Mono", monospace; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><a href="./">← open wake</a><span>case study · 2026</span></nav>
+
+<h1>wake</h1>
+<p class="lede">An instrument for drawing the trace a line leaves as it moves through time. This is how it was made: by taking another tool apart, finding what it couldn't do, and letting a pen plotter overrule me twice.</p>
+
+<h2><span class="n">01</span>Taking a tool apart</h2>
+<p>The starting point was <a href="https://github.com/doersino/uji">uji</a> by Noah Doersing, a lovely browser toy with fifty sliders and forty presets. Rather than reskin it, I read its source to find the one idea underneath. One line is redrawn every step and nudged a little each time, and every step stays on the page. The sliders are just numbers in a single, fixed recipe: shake, then shrink, then move, then wave, then turn.</p>
+<p>Two things fell out of that reading. First, its share links weren't reproducible: randomness was unseeded, so the same link drew something different every time. Second, every part of the line lived in the same moment.</p>
+
+<h2><span class="n">02</span>The idea that didn't work</h2>
+<p>I wanted each part of the line to keep its own clock. My first attempt shifted the rotation's timing point by point. I swept it across 300 renders, and nothing happened.</p>
+<figure class="wide"><img src="case/01-timeshear-x-rotationperiod.jpg" alt="A 10 by 10 grid of near-identical circles" loading="lazy"><figcaption>100 renders sweeping my first "time shear". They're all the same circle. Rotating a point keeps its distance from the centre, so per-point timing only slid points along the circle they were already on.</figcaption></figure>
+<p>The grid made the bug obvious in a way that tweaking one slider never would. The fix was more radical: a point whose moment hasn't come yet is neither drawn nor moved. When it begins, it joins a line whose other parts have already travelled.</p>
+<figure class="wide"><img src="case/05-timeshear-x-expansion.jpg" alt="A grid where rings open into crescents and spirals as the delay grows" loading="lazy"><figcaption>The second attempt. Going down the rows, the delay grows and closed rings open into crescents with a hard "not yet" edge.</figcaption></figure>
+<div class="pair">
+<figure><img src="case/delay-sweep.gif" alt="Animation: the delay span growing from zero" loading="lazy"><figcaption>delay span 0 → 160 steps</figcaption></figure>
+<figure><img src="case/build.gif" alt="Animation: a wake being drawn step by step" loading="lazy"><figcaption>one wake, drawn step by step</figcaption></figure>
+</div>
+
+<h2><span class="n">03</span>The 957-minute drawing</h2>
+<p>I wanted these on paper, drawn by a pen plotter, so I wrote a checker that estimates plot time and how much ink lands on each 2 mm square. A typical render from the original tool came back at <span class="k">957 minutes</span> and <span class="k">2.1 km</span> of ink, with thousands of squares that a pen would scrub through.</p>
+<div class="pair">
+<figure><img src="case/dense.jpg" alt="A dense render made of thousands of overlapping hairlines" loading="lazy"><figcaption>Screen-dense: beautiful on glass, but 957 minutes and torn paper.</figcaption></figure>
+<figure><img src="case/sparse.jpg" alt="Three sparse spiral drawings on A4" loading="lazy"><figcaption>Sparse: about 60 rings spaced apart. These take 3–5 minutes and nothing over-inks.</figcaption></figure>
+</div>
+<p>Going sparse wasn't a compromise. On paper the drawing became a net of short arcs, which reads better than the dense version did on screen.</p>
+
+<h2><span class="n">04</span>The paper chose circles</h2>
+<p>I made a seed decide every parameter, then let the plot checker reject anything that would over-ink. On the first pass only 7 of 20 survived. Every square and every triangle failed, because their corners fold the line back onto itself. After tightening the ranges and re-rolling the failures, all 20 passed, and all 20 were circles.</p>
+<figure class="wide"><img src="case/09-family-20.jpg" alt="Twenty open circular drawings on A4 sheets" loading="lazy"><figcaption>Twenty seeds as they'd sit on A4. I didn't choose circles; the paper did.</figcaption></figure>
+
+<h2><span class="n">05</span>Building my own instrument</h2>
+<p>wake is written from scratch, keeping the idea and none of the code. A drawing is a <b>seed shape</b> plus an <b>ordered stack of blocks</b> (rotate, scale, move, wave, jitter, swirl, attract, delay) that runs once per step. Any value in any block can drift over time, along the line, or both. Every point keeps its own clock. The whole drawing lives in the link, and the same link always gives the same drawing.</p>
+<figure class="wide"><img src="case/stack-sheet.jpg" alt="A grid of twenty drawings, one per block and modulation" loading="lazy"><figcaption>The visual regression sheet: one case per block, signal and seed shape. These are re-rendered and compared on every test run.</figcaption></figure>
+<div class="callout"><p>I expected <i>order</i> to be the headline: shuffle the blocks and get a new drawing. The tests said otherwise. With small steps, "scale then rotate" and "rotate then scale" are almost indistinguishable. Two near-identity transforms differ only by a second-order term. Order only shows with nonlinear blocks like wave and swirl. So the stack's real power is composition, and the interface says so.</p></div>
+<figure><img src="case/origin-orbit.gif" alt="Animation: the rotation origin orbiting while the drawing changes" loading="lazy"><figcaption>Dragging the rotation origin around the canvas. In wake you move it directly with a handle, not a slider.</figcaption></figure>
+
+<h2><span class="n">06</span>Proof</h2>
+<table>
+<tr><th>claim</th><th>evidence</th><th></th></tr>
+<tr><td>It's mine, not a copy</td><td>jscpd token comparison of wake (compiled to plain JS) against uji's original source: <b>0 shared clones</b>. A planted control was caught, which also exposed that jscpd silently skips files over 1,000 lines by default.</td><td class="ok">pass</td></tr>
+<tr><td>Same link, same drawing</td><td>Byte-identical SVGs for all 20 regression states, reloaded from the link; different seeds differ.</td><td class="ok">pass</td></tr>
+<tr><td>It looks the way it should</td><td>20 Playwright visual-regression baselines, 23 tests.</td><td class="ok">pass</td></tr>
+<tr><td>60 fps at 20,000 segments</td><td>60 fps at 20,000 segments per step: Pixel 7 emulation, 4× CPU throttle, Apple M1 GPU. <i>An emulation; the real-phone measurement is pending (open wake with <span class="k">?fps</span>).</i></td><td class="wait">emulated</td></tr>
+<tr><td>It plots</td><td>Default drawing: 3.9 min, max ink density 0.8 (limit 1.5) on A4 with a 0.3 mm pen. <a href="case/wake-default.svg">SVG</a>.</td><td class="wait">plot pending</td></tr>
+<tr><td>A stranger can play it</td><td>First-use test: 5 people, a 2-minute task, no instructions.</td><td class="wait">planned</td></tr>
+</table>
+
+<p class="statement">Every part of a line keeps its own clock, and the drawing is the record of them arriving.</p>
+<a class="cta" href="./">open wake →</a>
+<p class="mono" style="color:var(--mute);margin-top:40px">Inspired by uji by Noah Doersing. Drawing machines by Desmond Paul Henry and Vera Molnár's <i>(Des)Ordres</i> sit further back in the lineage.</p>
+</div>
+</body>
+</html>
