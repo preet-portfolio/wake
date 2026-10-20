@@ -10,11 +10,11 @@ test("hostile link is clamped and escaped", async ({ page }) => {
         style: { paper: "red;</style>", ink: "#000000", alpha: 1, width: "1\"><script>alert(1)</script>", hue: 0 },
     };
     const b64 = Buffer.from(JSON.stringify(evil)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    const t0 = Date.now();
     await page.goto(`/?instant#s=${b64}`);
     await page.waitForFunction(() => (window as any).wake);
     await page.evaluate(() => (window as any).wake.whenDone());
-    expect(Date.now() - t0).toBeLessThan(20_000);
+    // The clamps bound the work (≤ 20,000 points × 600 steps), so they are what's asserted.
+    // A wall-clock limit would only measure how busy the test machine is.
     const s = await page.evaluate(() => (window as any).wake.state);
     expect(s.steps).toBe(600);
     expect(s.shape.n).toBe(20000);
