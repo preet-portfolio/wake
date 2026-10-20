@@ -44,16 +44,47 @@ export interface Mark {
     segrot: number;     // detached: rotation in degrees
 }
 
+export type Blend = "over" | "add" | "multiply" | "screen";
+
+/** Cosine palette (Inigo Quilez): colour(x) = a + b·cos(2π(c·x + d)), each a vec3. */
+export type Palette = [number, number, number, number, number, number, number, number, number, number, number, number];
+
 export interface Style {
     paper: string;
-    ink: string;
+    paper2: string;     // background gradient: centre = paper, edge = paper2
+    grain: number;      // background film grain, 0..1
+    ink: string;        // single colour, used when palette is null
+    palette: Palette | null;
+    spread: number;     // palette cycles along the line
+    cycle: number;      // palette cycles over the whole drawing's time
+    shift: number;      // palette phase, 0..1
+    blend: Blend;
+    soft: number;       // glow: soft line edges, 0..1
     alpha: number;
     width: number;      // world units
-    hue: number;        // hue shift per step, degrees
+    hue: number;        // hue shift per step, degrees (single colour only)
 }
+
+/** Hand-tuned palettes for the colour designs and the swatch row. */
+export const PALETTES: Record<string, Palette> = {
+    ember:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0.0, 0.10, 0.20],
+    aurora:   [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 0.5, 0.80, 0.90, 0.30],
+    lagoon:   [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 0.7, 0.4, 0.0, 0.15, 0.20],
+    iris:     [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 2.0, 1.0, 0.0, 0.50, 0.20, 0.25],
+    sorbet:   [0.8, 0.5, 0.4, 0.2, 0.4, 0.2, 2.0, 1.0, 1.0, 0.0, 0.25, 0.25],
+    prism:    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0.0, 0.33, 0.67],
+    gold:     [0.6, 0.45, 0.2, 0.4, 0.3, 0.15, 1.0, 1.0, 1.0, 0.0, 0.05, 0.10],
+    glacier:  [0.55, 0.7, 0.85, 0.35, 0.3, 0.2, 1.0, 1.0, 1.0, 0.55, 0.55, 0.55],
+    orchid:   [0.6, 0.4, 0.8, 0.4, 0.35, 0.3, 1.0, 1.0, 1.0, 0.85, 0.0, 0.6],
+    neon:     [0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 1.0, 1.0, 1.0, 0.30, 0.20, 0.20],
+    moss:     [0.45, 0.6, 0.3, 0.35, 0.3, 0.25, 1.0, 1.0, 1.0, 0.15, 0.25, 0.4],
+    dusk:     [0.5, 0.4, 0.6, 0.5, 0.3, 0.4, 1.0, 1.0, 1.0, 0.95, 0.75, 0.55],
+};
 
 export interface State {
     v: 1;
+    /** the collection number this state was generated from, if any */
+    design?: number;
     seed: number;
     steps: number;
     shape: Seed;
@@ -63,6 +94,9 @@ export interface State {
 }
 
 export const WORLD = 1000;
+
+/** The numbered collection: every number from 1 to DESIGNS is one fixed design. */
+export const DESIGNS = 100_000;
 
 /** Parameter metadata for the UI: [label, min, max, step, default]. The first entry is the block's main knob. */
 export type ParamSpec = [string, string, number, number, number, number];
@@ -102,6 +136,19 @@ export const BLOCKS: Record<BlockKind, { label: string; hint: string; params: Pa
     },
 };
 
+export function defaultStyle(): Style {
+    return {
+        paper: "#f2eee4", paper2: "#f2eee4", grain: 0, ink: "#1c1b18",
+        palette: null, spread: 1, cycle: 0, shift: 0,
+        blend: "over", soft: 0, alpha: 0.9, width: 1.1, hue: 0,
+    };
+}
+
+export function paletteRgb(p: Palette, x: number): [number, number, number] {
+    const ch = (k: number) => Math.min(1, Math.max(0, p[k] + p[k + 3] * Math.cos(2 * Math.PI * (p[k + 6] * x + p[k + 9]))));
+    return [ch(0), ch(1), ch(2)];
+}
+
 export function newBlock(k: BlockKind): Block {
     const p: Record<string, Param> = {};
     for (const [name, , , , , def] of BLOCKS[k].params) p[name] = { b: def };
@@ -123,7 +170,7 @@ export function defaultState(): State {
         shape: { kind: "circle", n: 600, r: 400, cx: 500, cy: 500, rot: 0, sides: 5, la: 3, lb: 2, shuffle: 0 },
         blocks: [delay, scale, rotate],
         mark: { skip: 0, detach: false, seglen: 100, segrot: 0 },
-        style: { paper: "#f2eee4", ink: "#1c1b18", alpha: 0.9, width: 1.1, hue: 0 },
+        style: defaultStyle(),
     };
 }
 

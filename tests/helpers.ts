@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { defaultState, newBlock, type Block, type BlockKind, type State } from "../src/model";
 import { encode } from "../src/state";
+import { designFor } from "../src/design";
 
 export function blk(k: BlockKind, p: Record<string, number> = {}, mods: Partial<Block["p"]> = {}): Block {
     const b = newBlock(k);
@@ -41,5 +42,10 @@ export const CASES: [string, State][] = [
     ["line", st({ shape: { ...defaultState().shape, kind: "line" }, blocks: [blk("rotate", { a: 1.6 }), blk("move", { dy: 1.5 })] })],
     ["separate strokes", st({ mark: { skip: 0, detach: true, seglen: 300, segrot: 70 }, blocks: [blk("scale", { s: -2.5 })] })],
     ["gaps + tangle", st({ mark: { skip: 0.5, detach: false, seglen: 100, segrot: 0 }, shape: { ...defaultState().shape, shuffle: 12 }, blocks: [blk("scale", { s: -1.5 })] })],
-    ["ink on dark", st({ style: { paper: "#1c1b18", ink: "#f2eee4", alpha: 0.5, width: 0.8, hue: 2 } })],
+    ["ink on dark", st({ style: { ...defaultState().style, paper: "#1c1b18", paper2: "#1c1b18", ink: "#f2eee4", alpha: 0.5, width: 0.8, hue: 2 } })],
+    ["No. 808 colour", designFor(808)],
+    ["No. 3333 colour", designFor(3333)],
+    ["No. 7777 colour", designFor(7777)],
+    ["No. 4444 multiply", designFor(4444)],
+    ["No. 500 ink", designFor(500)],
 ];

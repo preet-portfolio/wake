@@ -14,13 +14,21 @@ button, select, input { font: inherit; color: inherit; }
 a { color: inherit; }
 
 .app { display: grid; grid-template-columns: 1fr 340px; height: 100vh; }
-.stage { position: relative; display: grid; place-items: center; padding: 28px; overflow: hidden; }
-#art { width: min(100%, calc(100vh - 56px)); aspect-ratio: 1; background: var(--sheet); box-shadow: 0 1px 2px #0001, 0 12px 40px -18px #0003; touch-action: none; }
+.stage { position: relative; display: grid; place-items: center; padding: 28px 28px 40px; overflow: hidden; }
+#art { width: min(100%, calc(100vh - 68px)); aspect-ratio: 1; background: var(--sheet); box-shadow: 0 1px 2px #0001, 0 12px 40px -18px #0003; touch-action: none; }
 .stage.drawing #art { cursor: crosshair; outline: 2px dashed var(--red); }
 .draw-hint { display: none; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--red); color: var(--sheet); padding: 3px 10px; }
 .stage.drawing .draw-hint { display: block; }
-.drift { position: absolute; right: 18px; bottom: 16px; background: var(--sheet); border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer; }
-.drift:hover { border-color: var(--ink); }
+.stage-bar { position: absolute; left: 28px; right: 28px; bottom: 6px; display: flex; gap: 6px; align-items: center; pointer-events: none; }
+.stage-bar > * { pointer-events: auto; }
+.stage-bar .spacer { flex: 1; }
+.stage-bar button { background: var(--sheet); border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer; }
+.stage-bar button:hover { border-color: var(--ink); }
+#new-colour { background: linear-gradient(90deg, #ffd6a5, #fdffb6, #caffbf, #9bf6ff, #bdb2ff, #ffc6ff); border-color: transparent; }
+.number { color: var(--mute); font-size: 11px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
+.swatch { width: 34px; height: 18px; border: 1px solid var(--rule); cursor: pointer; padding: 0; }
+.swatch.on { outline: 2px solid var(--ink); outline-offset: 1px; }
 .fps { position: absolute; top: 8px; left: 8px; background: var(--ink); color: var(--sheet); padding: 2px 8px; }
 
 .handles { position: absolute; inset: 0; pointer-events: none; }

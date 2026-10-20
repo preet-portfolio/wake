@@ -6,6 +6,9 @@ import { signal, type Param, type Seed, type State } from "./model";
 
 const DEG = Math.PI / 180;
 
+/** Floats per segment in Engine.segs: x0, y0, x1, y1, u (position along the line, 0..1). */
+export const SEG = 5;
+
 export function seedPoints(s: Seed, rng: Rng): { pts: Float64Array; closed: boolean } {
     const n = Math.max(2, Math.round(s.n));
     const pts = new Float64Array(n * 2);
@@ -80,7 +83,7 @@ export class Engine {
     n = 0;
     pts: Float64Array;
     closed: boolean;
-    /** segments from the last step: [x0, y0, x1, y1] per segment */
+    /** segments from the last step: SEG floats each */
     segs: Float32Array;
     count = 0;
     private rng: Rng;
@@ -94,7 +97,7 @@ export class Engine {
         this.pts = pts;
         this.closed = closed;
         const n = pts.length / 2;
-        this.segs = new Float32Array(n * 4 * 2);
+        this.segs = new Float32Array(n * SEG * 2);
         this.born = new Uint8Array(n);
         this.delay = new Float64Array(n);
         // the clock field: every enabled delay block adds to each point's start time
@@ -139,8 +142,9 @@ export class Engine {
                 const rx = hx * ca - hy * sa, ry = hx * sa + hy * ca;
                 x0 = mx - rx; y0 = my - ry; x1 = mx + rx; y1 = my + ry;
             }
-            const o = c * 4;
+            const o = c * SEG;
             this.segs[o] = x0; this.segs[o + 1] = y0; this.segs[o + 2] = x1; this.segs[o + 3] = y1;
+            this.segs[o + 4] = i / n;
             c++;
         };
         for (let i = 1; i < n; i++) emit(i - 1, i);

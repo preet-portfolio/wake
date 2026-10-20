@@ -1,16 +1,16 @@
 import "./style.css";
-import { Engine, runAll } from "./engine";
+import { Engine } from "./engine";
+import { designFor, modeOf, randomDesign } from "./design";
 import { Renderer } from "./gl";
 import { hexToRgb, rotateHue } from "./color";
-import { BLOCKS, WORLD, newBlock, type Block, type BlockKind, type Param, type SeedKind, type SignalKind, type State } from "./model";
+import { BLOCKS, DESIGNS, PALETTES, WORLD, newBlock, paletteRgb, type Blend, type Block, type BlockKind, type Palette, type Param, type SeedKind, type SignalKind, type State } from "./model";
 import { encode, sanitize, shareUrl, stateFromLocation } from "./state";
 import { Budget, download, stamp, toSVG } from "./export";
-import { makeRng } from "./rng";
 
 const params = new URLSearchParams(location.search);
 const INSTANT = params.has("instant");
 
-const fresh = !/s=[\w-]+/.test(location.hash);
+const fresh = !/(s=[\w-]+|n=\d+)/.test(location.hash);
 let state: State = stateFromLocation();
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const canvas = $<HTMLCanvasElement>("#art");
@@ -58,6 +58,7 @@ function drifted(s: State, t: number): State {
         });
     });
     d.shape.rot = (s.shape.rot + 25 * Math.sin(t * 0.05)) % 360;
+    d.style.shift = s.style.shift + t * 0.015; // colours slowly flow
     d.shape.r = s.shape.r * (1 + 0.04 * Math.sin(t * 0.09 + 1));
     return d;
 }
@@ -70,7 +71,8 @@ function restart() {
     current = shown();
     engine = new Engine(structuredClone(current));
     budget = new Budget();
-    renderer.clear(hexToRgb(current.style.paper));
+    const st = current.style;
+    renderer.clear(hexToRgb(st.paper), hexToRgb(st.paper2), st.grain, current.seed);
     finished = false;
     dirty = false;
 }
@@ -81,7 +83,16 @@ function stepOnce() {
     budget.add(engine.segs, c);
     const st = current.style;
     const ink = hexToRgb(st.ink);
-    renderer.draw(engine.segs, c, st.hue ? rotateHue(ink, st.hue * s) : ink, st.alpha, st.width);
+    renderer.draw(engine.segs, c, {
+        ink: st.hue ? rotateHue(ink, st.hue * s) : ink,
+        palette: st.palette,
+        spread: st.spread,
+        phase: st.shift + (st.cycle * s) / Math.max(1, current.steps),
+        blend: st.blend,
+        soft: st.soft,
+        alpha: st.alpha,
+        width: st.width,
+    });
 }
 
 function frame(now: number) {
@@ -124,16 +135,24 @@ function frame(now: number) {
     requestAnimationFrame(frame);
 }
 
-/** Change the state: the drawing restarts and the URL follows (a drifting page keeps a clean URL, so reloading gives a new design). */
-function commit(rebuildPanel = false) {
+/**
+ * Change the state: the drawing restarts and the URL follows. A drifting page
+ * keeps a clean URL (reloading gives a new design); an untouched collection
+ * design gets its short #n= link; anything else gets the full #s= state.
+ */
+function commit(rebuildPanel = false, byUser = true) {
     dirty = true;
+    if (byUser && state.design && !isDrifting()) variant = "edited";
     if (isDrifting()) history.replaceState(null, "", location.pathname + location.search);
+    else if (state.design && !variant && !driftHeld) history.replaceState(null, "", `#n=${state.design}`);
     else history.replaceState(null, "", `#s=${encode(state)}`);
     if (rebuildPanel) buildPanel();
     placeHandles();
+    renderNumber();
 }
 
 const driftButton = $<HTMLButtonElement>(".drift");
+const numberEl = $<HTMLDivElement>(".number");
 function renderDriftButton() {
     driftButton.hidden = !drifting;
     driftButton.textContent = driftHeld ? "▶ drift" : "❚❚ hold";
@@ -143,7 +162,7 @@ function holdDrift() {
     state = drifted(state, phase); // keep exactly what is on screen
     driftHeld = true;
     renderDriftButton();
-    commit(true);
+    commit(true, false);
 }
 driftButton.addEventListener("click", () => {
     if (!driftHeld) return holdDrift();
@@ -152,7 +171,7 @@ driftButton.addEventListener("click", () => {
     frameMs = 0;
     driftFrames = 0;
     renderDriftButton();
-    commit(true);
+    commit(true, false);
 });
 
 function showBudget() {
@@ -302,22 +321,46 @@ function buildPanel() {
         section("stack", h("p", { class: "hint" }, "Runs top to bottom, once per step. Drag or ↑↓ to reorder; mute with ●."), stack, add),
         section("time",
             knob("steps", state.steps, 1, 600, 1, v => (state.steps = v)),
-            h("div", { class: "row" },
-                knob("seed", state.seed, 1, 9999, 1, v => (state.seed = v)),
-                h("button", { class: "dice", title: "a new random stack", onclick: surprise }, "⚄ surprise"))),
+            knob("seed", state.seed, 1, 99999, 1, v => (state.seed = v))),
         section("mark",
             knob("gaps", m.skip, 0, 0.95, 0.01, v => (m.skip = v)),
             h("label", { class: "check" }, Object.assign(h("input", { type: "checkbox", onchange: (e: Event) => { m.detach = (e.target as HTMLInputElement).checked; commit(true); } }), { checked: m.detach }), "separate strokes"),
             ...(m.detach ? [knob("stroke length %", m.seglen, 10, 500, 5, v => (m.seglen = v)), knob("stroke turn", m.segrot, 0, 179, 1, v => (m.segrot = v))] : [])),
-        section("ink",
-            h("div", { class: "row" },
-                colour("paper", st.paper, v => (st.paper = v)),
-                colour("ink", st.ink, v => (st.ink = v)),
-                h("button", { class: "swap", title: "swap paper and ink", onclick: () => { [st.paper, st.ink] = [st.ink, st.paper]; commit(true); } }, "⇄")),
+        section("colour",
+            h("div", { class: "swatches" },
+                h("button", { class: `swatch mono${st.palette ? "" : " on"}`, title: "one ink colour", style: `background:${st.ink}`, onclick: () => { st.palette = null; commit(true); } }),
+                ...Object.entries(PALETTES).map(([name, p]) => h("button", {
+                    class: `swatch${samePalette(st.palette, p) ? " on" : ""}`, title: name, style: `background:${gradient(p)}`,
+                    onclick: () => { st.palette = [...p] as Palette; commit(true); },
+                }))),
+            ...(st.palette
+                ? [knob("along line", st.spread, -6, 6, 0.05, v => (st.spread = v)), knob("over time", st.cycle, -6, 6, 0.05, v => (st.cycle = v)), knob("offset", st.shift, 0, 1, 0.01, v => (st.shift = v))]
+                : [h("div", { class: "row" }, colour("ink", st.ink, v => (st.ink = v))), knob("hue drift", st.hue, -5, 5, 0.05, v => (st.hue = v))]),
+            h("div", { class: "seg" }, ...(["over", "add", "screen", "multiply"] as Blend[]).map(b => h("button", {
+                class: st.blend === b ? "on" : "", title: BLEND_HINT[b], onclick: () => { st.blend = b; commit(true); },
+            }, b === "over" ? "paint" : b === "add" ? "light" : b))),
+            knob("glow", st.soft, 0, 1, 0.01, v => (st.soft = v)),
             knob("weight", st.width, 0.2, 8, 0.1, v => (st.width = v)),
-            knob("opacity", st.alpha, 0.02, 1, 0.01, v => (st.alpha = v)),
-            knob("hue drift", st.hue, -5, 5, 0.05, v => (st.hue = v))),
+            knob("opacity", st.alpha, 0.005, 1, 0.005, v => (st.alpha = v))),
+        section("ground",
+            h("div", { class: "row" },
+                colour("centre", st.paper, v => (st.paper = v)),
+                colour("edge", st.paper2, v => (st.paper2 = v)),
+                h("button", { class: "swap", title: "swap ground and ink", onclick: () => { [st.paper, st.ink] = [st.ink, st.paper]; st.paper2 = st.paper; commit(true); } }, "⇄")),
+            knob("grain", st.grain, 0, 1, 0.01, v => (st.grain = v))),
     );
+}
+
+const BLEND_HINT: Record<Blend, string> = {
+    over: "paint: lines cover what is under them",
+    add: "light: overlapping lines add up and glow (best on dark grounds)",
+    screen: "screen: like light, but softer highlights",
+    multiply: "multiply: like inks on paper (best on light grounds)",
+};
+const samePalette = (a: Palette | null, b: Palette) => !!a && a.every((v, i) => Math.abs(v - b[i]) < 0.2);
+function gradient(p: Palette) {
+    const stops = [0, 0.25, 0.5, 0.75, 1].map(x => `rgb(${paletteRgb(p, x).map(c => Math.round(c * 255)).join(",")})`);
+    return `linear-gradient(90deg,${stops.join(",")})`;
 }
 
 function colour(label: string, value: string, set: (v: string) => void) {
@@ -326,68 +369,25 @@ function colour(label: string, value: string, set: (v: string) => void) {
     return h("label", { class: "colour" }, input, label);
 }
 
-// A random but tasteful stack. Several candidates are tried, and the one kept
-// fills the page and stays within the plot budget, because every fresh visit
-// starts here and it is the first thing a visitor sees.
-function randomStack(r: () => number): State {
-    const pick = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)];
-    const between = (a: number, b: number) => a + (b - a) * r();
-    const s = structuredClone(state);
-    const blocks: Block[] = [];
-    const delay = newBlock("delay");
-    delay.p.span.b = Math.round(between(-120, 120));
-    if (r() < 0.7) blocks.push(delay);
-    const scale = newBlock("scale");
-    scale.p.s.b = between(-3, -0.8);
-    scale.p.ox.b = between(350, 650); scale.p.oy.b = between(350, 650);
-    blocks.push(scale);
-    for (const k of ["rotate", "wave", "swirl", "attract", "jitter"] as BlockKind[]) {
-        if (r() > 0.45) continue;
-        const b = newBlock(k);
-        if (k === "rotate") { b.p.a.b = between(-2, 2); b.p.ox.b = between(300, 700); b.p.oy.b = between(300, 700); }
-        if (k === "wave") { b.p.a.b = between(0.5, 3); b.p.f.b = Math.round(between(2, 16)); }
-        if (k === "swirl") b.p.k.b = between(-4, 4);
-        if (k === "jitter") b.p.a.b = between(0.1, 1);
-        if (r() < 0.3) { const name = BLOCKS[k].params[0][0]; b.p[name].t = [pick(["sin", "fade", "noise"] as SignalKind[]), between(0.3, 1), Math.round(between(20, 120))]; }
-        blocks.splice(Math.floor(r() * (blocks.length + 1)), 0, b);
-    }
-    s.blocks = blocks;
-    s.seed = Math.floor(between(1, 9999));
-    s.steps = Math.round(between(40, 110));
-    s.shape = { ...s.shape, kind: pick(["circle", "circle", "polygon", "lissajous", "line"] as SeedKind[]), sides: Math.round(between(3, 7)), r: Math.round(between(330, 430)), cx: 500, cy: 500, rot: 0, shuffle: 0 };
-    delete s.shape.path;
-    return s;
-}
+// ---------- the collection ----------
 
-// how much of the page a state covers, and whether it can be plotted
-function judge(s: State) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    const b = new Budget();
-    runAll(s, (segs, count) => {
-        b.add(segs, count);
-        for (let i = 0; i < count * 4; i += 2) {
-            const x = segs[i], y = segs[i + 1];
-            if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-        }
-    });
-    const res = b.result();
-    const w = Math.max(0, Math.min(x1, WORLD) - Math.max(x0, 0)), h = Math.max(0, Math.min(y1, WORLD) - Math.max(y0, 0));
-    return { pass: res.pass, area: (w * h) / (WORLD * WORLD), small: Math.min(w, h) / WORLD };
-}
+let variant: "" | "edited" = "";
 
-function surprise() {
-    const r = makeRng(Date.now() % 1e9);
-    let best: State | null = null, bestScore = -1;
-    for (let i = 0; i < 30; i++) {
-        const c = randomStack(r);
-        const j = judge(c);
-        const score = (j.pass ? 1 : 0) + j.area + (j.small > 0.45 ? 0.5 : 0);
-        if (score > bestScore) { best = c; bestScore = score; }
-        if (j.pass && j.small > 0.45 && j.area > 0.35) break;
-    }
-    state = best!;
+/** Show a design from the collection: a random number of the given mode, or a given number. */
+function showDesign(n: number) {
+    state = designFor(n);
     open = new Set();
-    commit(true);
+    variant = "";
+    if (drifting || fresh) { drifting = true; driftHeld = reducedMotion; phase = 0; frameMs = 0; driftFrames = 0; }
+    renderDriftButton();
+    commit(true, false);
+}
+
+function renderNumber() {
+    const n = state.design;
+    const tag = !n ? "" : variant === "edited" ? " · edited" : isDrifting() ? " · drifting" : driftHeld && drifting ? " · held" : "";
+    numberEl.textContent = n ? `No. ${n.toLocaleString("en-US")}${tag}` : "your own design";
+    numberEl.title = n ? `${modeOf(n) === "ink" ? "an ink piece (plottable)" : "a colour piece"} from a collection of ${DESIGNS.toLocaleString("en-US")}` : "";
 }
 
 // ---------- direct handles on the canvas ----------
@@ -460,7 +460,9 @@ function startDrawing() {
 // ---------- actions ----------
 
 $("#share").addEventListener("click", async () => {
-    await navigator.clipboard?.writeText(shareUrl(shown())).catch(() => {});
+    const short = state.design && !variant && !isDrifting() && !driftHeld;
+    const url = short ? `${location.origin}${location.pathname}#n=${state.design}` : shareUrl(shown());
+    await navigator.clipboard?.writeText(url).catch(() => {});
     flash("#share", "link copied");
 });
 $("#png").addEventListener("click", () => canvas.toBlob(b => b && download(`wake-${stamp()}.png`, b)));
@@ -488,17 +490,20 @@ function flash(sel: string, text: string) {
 // ---------- boot ----------
 
 window.addEventListener("hashchange", () => {
-    if (!/s=[\w-]+/.test(location.hash)) return;
+    if (!/(s=[\w-]+|n=\d+)/.test(location.hash)) return;
     state = stateFromLocation();
+    variant = "";
     drifting = false; // an opened link shows exactly what was shared
     renderDriftButton();
     commit(true);
 });
 new ResizeObserver(() => { dirty = true; placeHandles(); }).observe(stage);
-if (fresh && !INSTANT) surprise(); // every visit without a link starts from a new design
+$("#new-colour").addEventListener("click", () => showDesign(randomDesign("colour")));
+$("#new-ink").addEventListener("click", () => showDesign(randomDesign("ink")));
+if (fresh && !INSTANT) showDesign(1 + Math.floor(Math.random() * DESIGNS)); // every visit starts from a new design
 renderDriftButton();
 buildPanel();
-commit();
+commit(false, false);
 requestAnimationFrame(frame);
 
 // hooks for tests and the console

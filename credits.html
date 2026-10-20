@@ -65,8 +65,10 @@ dd small { color: var(--mute); display: block; margin-top: 2px; }
 <dd>Each block is a small map applied every step; a wake is the orbit of a polyline under the stack.</dd>
 <dt>Baker–Campbell–Hausdorff formula — Campbell 1897, Baker 1905, Hausdorff 1906</dt>
 <dd>It explains a finding from the tests: for small steps, two transforms applied in either order differ only by a second-order term. That's why reordering wake's blocks changes little unless they're nonlinear.</dd>
+<dt><a href="https://iquilezles.org/articles/palettes/">Cosine palettes</a> — Inigo Quilez</dt>
+<dd>Every colour design's gradient is <i>a + b·cos(2π(c·t + d))</i>, from his article on procedural colour palettes. The twelve named palettes in wake are tuned from that formula.</dd>
 <dt>mulberry32 — Tommy Ettinger</dt>
-<dd>The seeded random number generator behind every random choice in wake, so the same link always gives the same drawing.
+<dd>The seeded random number generator behind every random choice in wake, so the same link always gives the same drawing, and each of the 100,000 numbered designs is the same on every device.
 <small>Public domain.</small></dd>
 </dl>
 

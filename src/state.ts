@@ -1,5 +1,6 @@
 // The whole state lives in the URL hash as base64url JSON, so a link is a drawing.
-import { BLOCKS, WORLD, defaultState, newBlock, type Block, type Mark, type Param, type Seed, type SeedKind, type Signal, type SignalKind, type State, type Style } from "./model";
+import { designFor } from "./design";
+import { BLOCKS, DESIGNS, WORLD, defaultState, newBlock, type Blend, type Block, type Mark, type Palette, type Param, type Seed, type SeedKind, type Signal, type SignalKind, type State, type Style } from "./model";
 
 export function encode(s: State): string {
     const bytes = new TextEncoder().encode(JSON.stringify(s));
@@ -25,6 +26,7 @@ const num = (v: unknown, lo: number, hi: number, def: number) =>
 const hex = (v: unknown, def: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : def);
 const SEEDS: SeedKind[] = ["circle", "polygon", "line", "lissajous", "drawn"];
 const SIGNAL_KINDS: SignalKind[] = ["none", "lin", "sin", "fade", "noise"];
+const BLENDS: Blend[] = ["over", "add", "multiply", "screen"];
 const MAX_PATH = 4000; // numbers, i.e. 2000 drawn points
 
 function cleanSignal(v: unknown): Signal | undefined {
@@ -88,15 +90,28 @@ export function sanitize(raw: Partial<State>): State {
         },
         style: {
             paper: hex(rt.paper, d.style.paper),
+            paper2: hex(rt.paper2, hex(rt.paper, d.style.paper2)),
+            grain: num(rt.grain, 0, 1, d.style.grain),
             ink: hex(rt.ink, d.style.ink),
-            alpha: num(rt.alpha, 0.02, 1, d.style.alpha),
+            palette: Array.isArray(rt.palette) && rt.palette.length === 12
+                ? (rt.palette.map(v => num(v, -3, 3, 0.5)) as Palette)
+                : null,
+            spread: num(rt.spread, -20, 20, d.style.spread),
+            cycle: num(rt.cycle, -20, 20, d.style.cycle),
+            shift: num(rt.shift, -10, 10, d.style.shift),
+            blend: BLENDS.includes(rt.blend as Blend) ? (rt.blend as Blend) : d.style.blend,
+            soft: num(rt.soft, 0, 1, d.style.soft),
+            alpha: num(rt.alpha, 0.005, 1, d.style.alpha),
             width: num(rt.width, 0.2, 8, d.style.width),
             hue: num(rt.hue, -5, 5, d.style.hue),
         },
+        ...(typeof r.design === "number" && Number.isInteger(r.design) && r.design >= 1 && r.design <= DESIGNS ? { design: r.design } : {}),
     };
 }
 
 export function stateFromLocation(): State {
+    const n = location.hash.match(/n=(\d+)/);
+    if (n) return designFor(Math.min(DESIGNS, Math.max(1, parseInt(n[1], 10))));
     const m = location.hash.match(/s=([\w-]+)/);
     return (m && decode(m[1])) || defaultState();
 }

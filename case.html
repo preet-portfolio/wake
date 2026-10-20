@@ -78,12 +78,18 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 <p>Every visit without a link starts from a new stack. The drawing then drifts: each value breathes slowly around where you set it, so wake is never quite the same twice, but it's always yours to steer. Hold freezes the exact frame into a link.</p>
 <figure><img src="case/origin-orbit.gif" alt="Animation: the rotation origin orbiting while the drawing changes" loading="lazy"><figcaption>Dragging the rotation origin around the canvas. In wake you move it directly with a handle, not a slider.</figcaption></figure>
 
-<h2><span class="n">06</span>Proof</h2>
+<h2><span class="n">06</span>A collection of 100,000</h2>
+<p>The plotter taught restraint; the screen asked for light. So wake has two kinds of design. <b>Ink</b> pieces are paper and pen, kept inside the plot budget. <b>Colour</b> pieces are light on dark or pigment on paper: gradients that flow along the line and through time, additive glow, soft edges and grain.</p>
+<p>Every number from 1 to 100,000 is one fixed design, and one number in five is an ink piece. A generator tries candidates for each number and judges them on the CPU alone, checking fill, exposure and plot budget, so that <i>No. 48,213</i> is the same piece on every phone and laptop. A test checks this by generating the same numbers in Node and in the browser and requiring identical results. <span class="k">✦ colour</span> and <span class="k">◯ ink</span> pull a random number; editing a design makes it your own.</p>
+<figure class="wide"><img src="case/collection.jpg" alt="Twenty-four designs from the collection: glowing colour pieces on dark grounds and ink spirals on paper" loading="lazy"><figcaption>24 numbers from the collection. The last three are ink pieces.</figcaption></figure>
+
+<h2><span class="n">07</span>Proof</h2>
 <table>
 <tr><th>claim</th><th>evidence</th><th></th></tr>
 <tr><td>It's mine, not a copy</td><td>jscpd token comparison of wake (compiled to plain JS) against uji's original source: <b>0 shared clones</b>. A planted control was caught, which also exposed that jscpd silently skips files over 1,000 lines by default.</td><td class="ok">pass</td></tr>
-<tr><td>Same link, same drawing</td><td>Byte-identical SVGs for all 20 regression states, reloaded from the link; different seeds differ.</td><td class="ok">pass</td></tr>
-<tr><td>It looks the way it should</td><td>20 Playwright visual-regression baselines, 23 tests.</td><td class="ok">pass</td></tr>
+<tr><td>Same link, same drawing</td><td>Byte-identical SVGs for every regression state, reloaded from the link; different seeds differ. Design numbers produce identical states in Node and in the browser.</td><td class="ok">pass</td></tr>
+<tr><td>It looks the way it should</td><td>25 Playwright visual-regression baselines (blocks, signals, seed shapes and collection pieces), 37 tests in all.</td><td class="ok">pass</td></tr>
+<tr><td>A link can't hurt the viewer</td><td>A hostile-link test: oversized values are clamped and injected markup never reaches the SVG.</td><td class="ok">pass</td></tr>
 <tr><td>60 fps at 20,000 segments</td><td>60 fps at 20,000 segments per step: Pixel 7 emulation, 4× CPU throttle, Apple M1 GPU. <i>An emulation; the real-phone measurement is pending (open wake with <span class="k">?fps</span>).</i></td><td class="wait">emulated</td></tr>
 <tr><td>It plots</td><td>Default drawing: 3.9 min, max ink density 0.8 (limit 1.5) on A4 with a 0.3 mm pen. <a href="case/wake-default.svg">SVG</a>.</td><td class="wait">plot pending</td></tr>
 <tr><td>A stranger can play it</td><td>First-use test: 5 people, a 2-minute task, no instructions.</td><td class="wait">planned</td></tr>

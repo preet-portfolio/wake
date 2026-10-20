@@ -1,5 +1,5 @@
 // Exports: plotter SVG (merged polylines), a live plot budget, PNG and video.
-import { runAll } from "./engine";
+import { runAll, SEG } from "./engine";
 import { WORLD, type State } from "./model";
 
 /** Polylines for the whole drawing: consecutive segments that share an endpoint are merged. */
@@ -8,7 +8,7 @@ export function polylines(state: State): number[][] {
     runAll(state, (segs, count) => {
         let cur: number[] | null = null;
         for (let k = 0; k < count; k++) {
-            const o = k * 4;
+            const o = k * SEG;
             const x0 = segs[o], y0 = segs[o + 1], x1 = segs[o + 2], y1 = segs[o + 3];
             if (cur && cur[cur.length - 2] === x0 && cur[cur.length - 1] === y0) {
                 cur.push(x1, y1);
@@ -58,7 +58,7 @@ export class Budget {
         const mm = Budget.MM;
         let px = NaN, py = NaN;
         for (let k = 0; k < count; k++) {
-            const o = k * 4;
+            const o = k * SEG;
             const x0 = segs[o], y0 = segs[o + 1], x1 = segs[o + 2], y1 = segs[o + 3];
             if (x0 !== px || y0 !== py) this.lifts++;
             px = x1; py = y1;

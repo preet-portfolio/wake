@@ -8,8 +8,11 @@ A drawing is a **seed shape** plus an **ordered stack of blocks** (rotate, scale
 - **Case study:** `case.html` (also served at `/case.html`)
 - **First-use test plan:** [docs/first-use-test.md](docs/first-use-test.md)
 
+## A collection of 100,000
+Every number from 1 to 100,000 is one fixed design (`#n=48213`). One in five is an **ink** piece (paper and pen, within the plot budget), and the rest are **colour** pieces (cosine-palette gradients, additive glow, soft edges, grain). Candidates are judged on the CPU only, so a number gives the same design on every device. `✦ colour` and `◯ ink` pull a random number; editing turns it into your own `#s=` link.
+
 ## Every visit is new
-Opening wake without a link generates a new stack, and the drawing then **drifts**: every parameter breathes slowly around the value you set, so changing a setting moves the centre it drifts around. **❚❚ hold** freezes the exact frame into a shareable link. Links always open still. Drift is off when the visitor asks for reduced motion, and it holds itself on devices that can't redraw at 20 fps or better. `?still` disables drift.
+Opening wake without a link shows a random design from the collection, and the drawing then **drifts**: every parameter breathes slowly around the value you set, so changing a setting moves the centre it drifts around. **❚❚ hold** freezes the exact frame into a shareable link. Links always open still. Drift is off when the visitor asks for reduced motion, and it holds itself on devices that can't redraw at 20 fps or better. `?still` disables drift.
 
 ## Run
 ```sh
