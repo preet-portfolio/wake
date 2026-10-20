@@ -1,5 +1,5 @@
 import "./style.css";
-import { Engine } from "./engine";
+import { Engine, runAll } from "./engine";
 import { Renderer } from "./gl";
 import { hexToRgb, rotateHue } from "./color";
 import { BLOCKS, WORLD, newBlock, type Block, type BlockKind, type Param, type SeedKind, type SignalKind, type State } from "./model";
@@ -326,11 +326,13 @@ function colour(label: string, value: string, set: (v: string) => void) {
     return h("label", { class: "colour" }, input, label);
 }
 
-// a random but tasteful stack: always a contraction or a delay, so it reads as a wake
-function surprise() {
-    const r = makeRng(Date.now() % 1e9);
+// A random but tasteful stack. Several candidates are tried, and the one kept
+// fills the page and stays within the plot budget, because every fresh visit
+// starts here and it is the first thing a visitor sees.
+function randomStack(r: () => number): State {
     const pick = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)];
     const between = (a: number, b: number) => a + (b - a) * r();
+    const s = structuredClone(state);
     const blocks: Block[] = [];
     const delay = newBlock("delay");
     delay.p.span.b = Math.round(between(-120, 120));
@@ -349,11 +351,41 @@ function surprise() {
         if (r() < 0.3) { const name = BLOCKS[k].params[0][0]; b.p[name].t = [pick(["sin", "fade", "noise"] as SignalKind[]), between(0.3, 1), Math.round(between(20, 120))]; }
         blocks.splice(Math.floor(r() * (blocks.length + 1)), 0, b);
     }
-    state.blocks = blocks;
-    state.seed = Math.floor(between(1, 9999));
-    state.steps = Math.round(between(40, 110));
-    state.shape.kind = pick(["circle", "circle", "polygon", "lissajous", "line"] as SeedKind[]);
-    state.shape.sides = Math.round(between(3, 7));
+    s.blocks = blocks;
+    s.seed = Math.floor(between(1, 9999));
+    s.steps = Math.round(between(40, 110));
+    s.shape = { ...s.shape, kind: pick(["circle", "circle", "polygon", "lissajous", "line"] as SeedKind[]), sides: Math.round(between(3, 7)), r: Math.round(between(330, 430)), cx: 500, cy: 500, rot: 0, shuffle: 0 };
+    delete s.shape.path;
+    return s;
+}
+
+// how much of the page a state covers, and whether it can be plotted
+function judge(s: State) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const b = new Budget();
+    runAll(s, (segs, count) => {
+        b.add(segs, count);
+        for (let i = 0; i < count * 4; i += 2) {
+            const x = segs[i], y = segs[i + 1];
+            if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+    });
+    const res = b.result();
+    const w = Math.max(0, Math.min(x1, WORLD) - Math.max(x0, 0)), h = Math.max(0, Math.min(y1, WORLD) - Math.max(y0, 0));
+    return { pass: res.pass, area: (w * h) / (WORLD * WORLD), small: Math.min(w, h) / WORLD };
+}
+
+function surprise() {
+    const r = makeRng(Date.now() % 1e9);
+    let best: State | null = null, bestScore = -1;
+    for (let i = 0; i < 30; i++) {
+        const c = randomStack(r);
+        const j = judge(c);
+        const score = (j.pass ? 1 : 0) + j.area + (j.small > 0.45 ? 0.5 : 0);
+        if (score > bestScore) { best = c; bestScore = score; }
+        if (j.pass && j.small > 0.45 && j.area > 0.35) break;
+    }
+    state = best!;
     open = new Set();
     commit(true);
 }

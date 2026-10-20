@@ -3,3 +3,4 @@ dist/
 reports/playwright/
 reports/jscpd/compiled/
 test-results/
+.vercel
