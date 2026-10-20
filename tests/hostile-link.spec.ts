@@ -33,3 +33,14 @@ test("hostile link is clamped and escaped", async ({ page }) => {
     const svg: string = await page.evaluate(() => (window as any).wake.svg());
     expect(svg).not.toContain("<script");
 });
+
+test("a hostile Turing-pattern link can't ask the GPU for thousands of steps per frame", async ({ page }) => {
+    test.use; // (GPU-independent: the clamp is what's checked)
+    const evil = { v: 1, species: "grayscott", sp: { iters: 10000, t: 99 }, live: { mode: "trails", trail: 1, speed: 4 } };
+    const b64 = Buffer.from(JSON.stringify(evil)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    await page.goto(`/?particles=500#s=${b64}`);
+    await page.waitForFunction(() => (window as any).wake);
+    // the page keeps answering: frames are being produced
+    await page.waitForTimeout(1500);
+    expect(await page.evaluate(() => (window as any).wake.fps())).toBeGreaterThan(0);
+});

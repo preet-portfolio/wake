@@ -245,7 +245,9 @@ function liveFrame(now: number) {
             const brush: [number, number, number] | null = pointer.mode !== "none"
                 ? [((pointer.x - b.x0) / (b.x1 - b.x0)) * gs!.w, (1 - (pointer.y - b.y0) / (b.y1 - b.y0)) * gs!.h, 4]
                 : null;
-            gs!.run(Math.round((state.sp?.iters ?? 12) * state.live.speed), F, k, brush);
+            // links are untrusted: steps per frame stay within what any GPU can do
+            const iters = Math.min(40, Math.max(1, state.sp?.iters ?? 12));
+            gs!.run(Math.max(1, Math.round(iters * state.live.speed)), F, k, brush);
             settleTier(now, dt);
         }
         gsPresent();
