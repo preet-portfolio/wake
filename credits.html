@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wake — credits &amp; sources</title>
+<meta name="description" content="The work, people, ideas and tools that wake draws on.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root { --paper:#f2eee4; --ink:#1c1b18; --mute:#7d776b; --rule:#d8d1c2; --red:#d4462a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.55 "Instrument Serif", Georgia, serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
+nav, .mono, dd small { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; }
+nav { display: flex; gap: 18px; color: var(--mute); }
+nav a, a { color: inherit; }
+h1 { font-style: italic; font-weight: 400; font-size: clamp(44px, 8vw, 76px); line-height: .95; margin: 40px 0 12px; }
+.lede { font-size: 22px; margin: 0 0 28px; }
+h2 { font-weight: 400; font-size: 30px; margin: 48px 0 6px; border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+dl { margin: 0; }
+dt { font-size: 21px; margin-top: 16px; }
+dt a { text-decoration-color: var(--rule); text-underline-offset: 3px; }
+dd { margin: 2px 0 0; color: #3a3832; }
+dd small { color: var(--mute); display: block; margin-top: 2px; }
+.callout { border-left: 3px solid var(--red); padding: 2px 0 2px 16px; margin: 20px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><a href="./">← wake</a><a href="case.html">how it was made</a></nav>
+<h1>credits &amp; sources</h1>
+<p class="lede">wake is new work, written from scratch, but it stands on other people's work. This page lists everything it took inspiration, ideas or tools from.</p>
+
+<div class="callout"><p><b>uji</b> by Noah Doersing is the direct inspiration. wake shares no code, presets, glyphs or layout with it; a token-level copy check against uji's original source found no shared code. The idea of a drawing as a line redrawn and nudged every step, with every step left on the page, came from playing with uji and reading its source.</p></div>
+
+<h2>Inspiration</h2>
+<dl>
+<dt><a href="https://github.com/doersino/uji">uji</a> — Noah Doersing, 2021</dt>
+<dd>A minimalist generative art tool in the browser (<a href="https://ghpages.noahdoersing.com/uji/">live</a>). The case study's early contact sheets and the 20-circle series were made with a modified fork of uji, which keeps its license.
+<small>License: MIT, with a clause forbidding NFTs ("MIT except NFTs" v1.1).</small></dd>
+<dt>Dōgen, <i>Uji</i> (“Being-Time”), 1240</dt>
+<dd>A fascicle of the <i>Shōbōgenzō</i>, and the source of uji's name. Its idea that each moment is complete in itself shaped wake's per-point clocks and the series statement.</dd>
+</dl>
+
+<h2>Lineage: drawing machines and plotter art</h2>
+<dl>
+<dt>Vera Molnár, <i>(Des)Ordres</i>, 1974</dt>
+<dd>Plotter drawings of ordered squares disturbed by controlled randomness. In wake this lineage shows up as <i>jitter</i> and <i>gaps</i>.</dd>
+<dt>Desmond Paul Henry, drawing machines, from 1961</dt>
+<dd>Machines built from analogue bombsight computers that left mechanical traces on paper. In wake, the drawing is the trace of motion.</dd>
+<dt>Harmonograph — attributed to Hugh Blackburn, c. 1844</dt>
+<dd>Pendulums summing periodic motions into a figure. These are wake's <i>wave</i> signals over time.</dd>
+<dt>Spirograph — Denys Fisher, 1965</dt>
+<dd>Rolling circles that produce epicycles: rotation about a moving origin.</dd>
+<dt>Lissajous figures — Jules Antoine Lissajous, 1857</dt>
+<dd>One of wake's seed shapes.</dd>
+<dt>Ensō</dt>
+<dd>The Zen circle drawn in one movement and often left open, which is what the plotter-tested series turned into.</dd>
+</dl>
+
+<h2>Mathematics</h2>
+<dl>
+<dt>Affine transforms and iterated maps</dt>
+<dd>Each block is a small map applied every step; a wake is the orbit of a polyline under the stack.</dd>
+<dt>Baker–Campbell–Hausdorff formula — Campbell 1897, Baker 1905, Hausdorff 1906</dt>
+<dd>It explains a finding from the tests: for small steps, two transforms applied in either order differ only by a second-order term. That's why reordering wake's blocks changes little unless they're nonlinear.</dd>
+<dt>mulberry32 — Tommy Ettinger</dt>
+<dd>The seeded random number generator behind every random choice in wake, so the same link always gives the same drawing.
+<small>Public domain.</small></dd>
+</dl>
+
+<h2>Tools</h2>
+<dl>
+<dt><a href="https://vitejs.dev">Vite</a> and <a href="https://www.typescriptlang.org">TypeScript</a></dt>
+<dd>Build and language. Rendering uses the browser's WebGL2 directly, with no graphics library.<small>MIT · Apache-2.0</small></dd>
+<dt><a href="https://playwright.dev">Playwright</a> — Microsoft</dt>
+<dd>Visual regression, determinism and hostile-link tests, phone-emulated frame rates, and the case study's GIFs.<small>Apache-2.0</small></dd>
+<dt><a href="https://github.com/abey79/vpype">vpype</a> — Antoine Beyeler</dt>
+<dd>Plotter path optimisation and the statistics behind the plot-time and ink-density checks.<small>MIT</small></dd>
+<dt><a href="https://www.axidraw.com">AxiDraw</a> — Evil Mad Scientist Laboratories</dt>
+<dd>The pen plotter whose speeds the plot budget assumes.</dd>
+<dt><a href="https://github.com/kucherenko/jscpd">jscpd</a> — Andrey Kucherenko</dt>
+<dd>The copy-detection check against uji's source.<small>MIT</small></dd>
+<dt><a href="https://github.com/mattdesl/gifenc">gifenc</a> — Matt DesLauriers · <a href="https://github.com/pngjs/pngjs">pngjs</a></dt>
+<dd>Encoding the case-study GIFs.<small>MIT · MIT</small></dd>
+<dt><a href="https://vercel.com">Vercel</a></dt>
+<dd>Hosting.</dd>
+</dl>
+
+<h2>Type</h2>
+<dl>
+<dt><a href="https://fonts.google.com/specimen/Instrument+Serif">Instrument Serif</a> — Rodrigo Fuenzalida &amp; Jordan Egstad (Instrument)</dt>
+<dd><small>SIL Open Font License 1.1, served by Google Fonts.</small></dd>
+<dt><a href="https://fonts.google.com/specimen/IBM+Plex+Mono">IBM Plex Mono</a> — IBM, designed by Mike Abbink with Bold Monday</dt>
+<dd><small>SIL Open Font License 1.1, served by Google Fonts.</small></dd>
+</dl>
+
+<h2>Making of</h2>
+<dl>
+<dt>Concept, direction and curation — Preet</dt>
+<dt>Built with <a href="https://claude.com/claude-code">Claude Code</a> (Anthropic)</dt>
+<dd>An AI coding assistant wrote and tested much of the code and the case study, under the author's direction.</dd>
+</dl>
+</div>
+</body>
+</html>

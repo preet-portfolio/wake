@@ -75,6 +75,7 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 <p>wake is written from scratch, keeping the idea and none of the code. A drawing is a <b>seed shape</b> plus an <b>ordered stack of blocks</b> (rotate, scale, move, wave, jitter, swirl, attract, delay) that runs once per step. Any value in any block can drift over time, along the line, or both. Every point keeps its own clock. The whole drawing lives in the link, and the same link always gives the same drawing.</p>
 <figure class="wide"><img src="case/stack-sheet.jpg" alt="A grid of twenty drawings, one per block and modulation" loading="lazy"><figcaption>The visual regression sheet: one case per block, signal and seed shape. These are re-rendered and compared on every test run.</figcaption></figure>
 <div class="callout"><p>I expected <i>order</i> to be the headline: shuffle the blocks and get a new drawing. The tests said otherwise. With small steps, "scale then rotate" and "rotate then scale" are almost indistinguishable. Two near-identity transforms differ only by a second-order term. Order only shows with nonlinear blocks like wave and swirl. So the stack's real power is composition, and the interface says so.</p></div>
+<p>Every visit without a link starts from a new stack. The drawing then drifts: each value breathes slowly around where you set it, so wake is never quite the same twice, but it's always yours to steer. Hold freezes the exact frame into a link.</p>
 <figure><img src="case/origin-orbit.gif" alt="Animation: the rotation origin orbiting while the drawing changes" loading="lazy"><figcaption>Dragging the rotation origin around the canvas. In wake you move it directly with a handle, not a slider.</figcaption></figure>
 
 <h2><span class="n">06</span>Proof</h2>
@@ -90,7 +91,7 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 
 <p class="statement">Every part of a line keeps its own clock, and the drawing is the record of them arriving.</p>
 <a class="cta" href="./">open wake →</a>
-<p class="mono" style="color:var(--mute);margin-top:40px">Inspired by uji by Noah Doersing. Drawing machines by Desmond Paul Henry and Vera Molnár's <i>(Des)Ordres</i> sit further back in the lineage.</p>
+<p class="mono" style="color:var(--mute);margin-top:40px"><a href="credits.html">Full credits &amp; sources →</a><br>Inspired by uji by Noah Doersing. Drawing machines by Desmond Paul Henry and Vera Molnár's <i>(Des)Ordres</i> sit further back in the lineage.</p>
 </div>
 </body>
 </html>

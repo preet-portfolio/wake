@@ -10,6 +10,7 @@ import { makeRng } from "./rng";
 const params = new URLSearchParams(location.search);
 const INSTANT = params.has("instant");
 
+const fresh = !/s=[\w-]+/.test(location.hash);
 let state: State = stateFromLocation();
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const canvas = $<HTMLCanvasElement>("#art");
@@ -23,16 +24,53 @@ const renderer = new Renderer(canvas);
 
 let engine: Engine;
 let budget: Budget;
+let current: State = state;   // what is on the canvas: the state, or a drifted copy of it
 let dirty = true;
 let finished = false;
 let onFinish: (() => void) | null = null;
 
+// ---------- drift ----------
+// A fresh visit gets a new design, and it keeps shifting by itself: every
+// parameter breathes slowly around the value you set. Holding it freezes the
+// current frame into the state. Shared links open still, exactly as shared.
+
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let drifting = fresh && !INSTANT && !params.has("still");
+let driftHeld = reducedMotion;
+let phase = 0;
+let lastTime = performance.now();
+let lastBudgetShown = 0;
+let frameMs = 0;      // smoothed real time between frames while drifting
+let driftFrames = 0;
+
+const isDrifting = () => drifting && !driftHeld;
+
+function drifted(s: State, t: number): State {
+    const d = structuredClone(s);
+    d.blocks.forEach((b, j) => {
+        BLOCKS[b.k].params.forEach(([name, , lo, hi], k) => {
+            if (name === "f" || name === "dir") return; // integer-ish knobs would pop
+            const p = b.p[name];
+            const origin = /^(ox|oy|x|y)$/.test(name);
+            const amp = origin ? 70 : (k === 0 ? 0.06 : 0.03) * (hi - lo);
+            const w = 0.07 + 0.05 * ((j * 7 + k * 3) % 5);
+            p.b = Math.min(hi, Math.max(lo, p.b + amp * Math.sin(t * w + j * 1.7 + k * 2.3)));
+        });
+    });
+    d.shape.rot = (s.shape.rot + 25 * Math.sin(t * 0.05)) % 360;
+    d.shape.r = s.shape.r * (1 + 0.04 * Math.sin(t * 0.09 + 1));
+    return d;
+}
+
+const shown = (): State => (isDrifting() ? drifted(state, phase) : state);
+
 function restart() {
     const px = Math.round(Math.min(stage.clientWidth, stage.clientHeight) * Math.min(devicePixelRatio, 2));
     renderer.resize(Math.max(px, 300));
-    engine = new Engine(structuredClone(state));
+    current = shown();
+    engine = new Engine(structuredClone(current));
     budget = new Budget();
-    renderer.clear(hexToRgb(state.style.paper));
+    renderer.clear(hexToRgb(current.style.paper));
     finished = false;
     dirty = false;
 }
@@ -41,18 +79,44 @@ function stepOnce() {
     const s = engine.n;
     const c = engine.step();
     budget.add(engine.segs, c);
-    const ink = hexToRgb(state.style.ink);
-    renderer.draw(engine.segs, c, state.style.hue ? rotateHue(ink, state.style.hue * s) : ink, state.style.alpha, state.style.width);
+    const st = current.style;
+    const ink = hexToRgb(st.ink);
+    renderer.draw(engine.segs, c, st.hue ? rotateHue(ink, st.hue * s) : ink, st.alpha, st.width);
 }
 
-function frame() {
+function frame(now: number) {
+    const raw = now - lastTime;
+    const dt = Math.min(0.1, raw / 1000);
+    lastTime = now;
+    // Drift redraws the whole drawing every frame. If this device can't do that
+    // smoothly (slow GPU, software GL, a very heavy design), drift holds itself
+    // on the current frame instead of stuttering; "▶ drift" tries again.
+    if (isDrifting()) {
+        // judge by real frame time (it includes the browser presenting the frame),
+        // skipping the first two frames of warm-up
+        driftFrames++;
+        if (driftFrames > 2) frameMs = driftFrames === 3 ? raw : frameMs * 0.7 + raw * 0.3;
+        const slow = driftFrames >= 5 && frameMs > 50; // under ~20 fps
+        if (state.shape.n * state.steps > 150_000 || slow) {
+            holdDrift();
+        } else {
+            phase += dt;
+            dirty = true;
+        }
+    }
     if (dirty) restart();
     if (!engine.done) {
-        const until = performance.now() + (INSTANT ? 1e9 : 9);
+        const whole = INSTANT || isDrifting();
+        const until = performance.now() + (whole ? 1e9 : 9);
         do stepOnce(); while (!engine.done && performance.now() < until);
-    } else if (!finished) {
+
+    }
+    if (engine.done && !finished) {
         finished = true;
-        showBudget();
+        if (!isDrifting() || now - lastBudgetShown > 500) {
+            showBudget();
+            lastBudgetShown = now;
+        }
         onFinish?.();
         onFinish = null;
     }
@@ -60,13 +124,36 @@ function frame() {
     requestAnimationFrame(frame);
 }
 
-/** Change the state: the drawing restarts and the URL follows. */
+/** Change the state: the drawing restarts and the URL follows (a drifting page keeps a clean URL, so reloading gives a new design). */
 function commit(rebuildPanel = false) {
     dirty = true;
-    history.replaceState(null, "", `#s=${encode(state)}`);
+    if (isDrifting()) history.replaceState(null, "", location.pathname + location.search);
+    else history.replaceState(null, "", `#s=${encode(state)}`);
     if (rebuildPanel) buildPanel();
     placeHandles();
 }
+
+const driftButton = $<HTMLButtonElement>(".drift");
+function renderDriftButton() {
+    driftButton.hidden = !drifting;
+    driftButton.textContent = driftHeld ? "▶ drift" : "❚❚ hold";
+    driftButton.title = driftHeld ? "let the drawing shift by itself again" : "freeze this exact drawing";
+}
+function holdDrift() {
+    state = drifted(state, phase); // keep exactly what is on screen
+    driftHeld = true;
+    renderDriftButton();
+    commit(true);
+}
+driftButton.addEventListener("click", () => {
+    if (!driftHeld) return holdDrift();
+    driftHeld = false;
+    phase = 0;
+    frameMs = 0;
+    driftFrames = 0;
+    renderDriftButton();
+    commit(true);
+});
 
 function showBudget() {
     const b = budget.result();
@@ -341,11 +428,11 @@ function startDrawing() {
 // ---------- actions ----------
 
 $("#share").addEventListener("click", async () => {
-    await navigator.clipboard?.writeText(shareUrl(state)).catch(() => {});
+    await navigator.clipboard?.writeText(shareUrl(shown())).catch(() => {});
     flash("#share", "link copied");
 });
 $("#png").addEventListener("click", () => canvas.toBlob(b => b && download(`wake-${stamp()}.png`, b)));
-$("#svg").addEventListener("click", () => download(`wake-${stamp()}.svg`, new Blob([toSVG(state, shareUrl(state))], { type: "image/svg+xml" })));
+$("#svg").addEventListener("click", () => download(`wake-${stamp()}.svg`, new Blob([toSVG(shown(), shareUrl(shown()))], { type: "image/svg+xml" })));
 $("#video").addEventListener("click", () => {
     const rec = new MediaRecorder(canvas.captureStream(60), { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm" });
     const chunks: Blob[] = [];
@@ -353,8 +440,11 @@ $("#video").addEventListener("click", () => {
     rec.onstop = () => download(`wake-${stamp()}.webm`, new Blob(chunks, { type: "video/webm" }));
     rec.start();
     flash("#video", "recording…");
-    dirty = true;
-    onFinish = () => setTimeout(() => rec.stop(), 600);
+    if (isDrifting()) setTimeout(() => rec.stop(), 8000); // a drifting drawing is recorded for 8 s
+    else {
+        dirty = true;
+        onFinish = () => setTimeout(() => rec.stop(), 600);
+    }
 });
 
 function flash(sel: string, text: string) {
@@ -365,8 +455,16 @@ function flash(sel: string, text: string) {
 
 // ---------- boot ----------
 
-window.addEventListener("hashchange", () => { state = stateFromLocation(); commit(true); });
+window.addEventListener("hashchange", () => {
+    if (!/s=[\w-]+/.test(location.hash)) return;
+    state = stateFromLocation();
+    drifting = false; // an opened link shows exactly what was shared
+    renderDriftButton();
+    commit(true);
+});
 new ResizeObserver(() => { dirty = true; placeHandles(); }).observe(stage);
+if (fresh && !INSTANT) surprise(); // every visit without a link starts from a new design
+renderDriftButton();
 buildPanel();
 commit();
 requestAnimationFrame(frame);
@@ -385,7 +483,7 @@ window.wake = {
             await new Promise<void>(res => (onFinish = res));
         }
     },
-    svg: () => toSVG(state),
+    svg: () => toSVG(shown()),
     // draw a state up to step k right now and return a PNG of size px (for GIFs and docs)
     snapshot(s: State, k: number, px = 360) {
         state = sanitize(s);

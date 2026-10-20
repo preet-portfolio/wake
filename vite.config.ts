@@ -8,6 +8,7 @@ export default defineConfig({
             input: {
                 main: resolve(__dirname, "index.html"),
                 case: resolve(__dirname, "case.html"),
+                credits: resolve(__dirname, "credits.html"),
             },
         },
     },

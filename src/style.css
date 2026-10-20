@@ -19,6 +19,8 @@ a { color: inherit; }
 .stage.drawing #art { cursor: crosshair; outline: 2px dashed var(--red); }
 .draw-hint { display: none; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--red); color: var(--sheet); padding: 3px 10px; }
 .stage.drawing .draw-hint { display: block; }
+.drift { position: absolute; right: 18px; bottom: 16px; background: var(--sheet); border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer; }
+.drift:hover { border-color: var(--ink); }
 .fps { position: absolute; top: 8px; left: 8px; background: var(--ink); color: var(--sheet); padding: 2px 8px; }
 
 .handles { position: absolute; inset: 0; pointer-events: none; }

@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { CASES, show, st } from "./helpers";
 
 test("same state → byte-identical SVG, every case", async ({ page }) => {
+    test.setTimeout(300_000); // 20 cases, each loaded twice
     for (const [name, s] of CASES) {
         await show(page, s);
         const a = await page.evaluate(() => (window as any).wake.svg());

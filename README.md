@@ -8,6 +8,9 @@ A drawing is a **seed shape** plus an **ordered stack of blocks** (rotate, scale
 - **Case study:** `case.html` (also served at `/case.html`)
 - **First-use test plan:** [docs/first-use-test.md](docs/first-use-test.md)
 
+## Every visit is new
+Opening wake without a link generates a new stack, and the drawing then **drifts**: every parameter breathes slowly around the value you set, so changing a setting moves the centre it drifts around. **❚❚ hold** freezes the exact frame into a shareable link. Links always open still. Drift is off when the visitor asks for reduced motion, and it holds itself on devices that can't redraw at 20 fps or better. `?still` disables drift.
+
 ## Run
 ```sh
 npm install
@@ -30,4 +33,4 @@ node scripts/gif.mjs           # case-study GIFs (needs `npx vite --port 5179` r
 ```
 
 ## Credit
-Inspired by [uji](https://github.com/doersino/uji) by Noah Doersing. wake shares no code with it (see `reports/jscpd/verdict.json`). mulberry32 is by Tommy Ettinger (public domain).
+Inspired by [uji](https://github.com/doersino/uji) by Noah Doersing. wake shares no code with it (see `reports/jscpd/verdict.json`). The full list of sources, lineage, tools and fonts is in `credits.html`.
