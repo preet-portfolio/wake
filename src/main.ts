@@ -16,6 +16,7 @@ const INSTANT = params.has("instant");
 const VIEW: "live" | "still" = INSTANT || params.has("still") ? "still" : "live";
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (INSTANT) document.body.classList.add("instant"); // render-only: no controls over the drawing
+document.body.classList.add(VIEW); // "live" fills the window; "still" is the square drawing
 
 const fresh = !/(s=[\w-]+|n=\d+)/.test(location.hash);
 let state: State = stateFromLocation();
@@ -33,7 +34,17 @@ let paused = reducedMotion && VIEW === "live";
 let variant: "" | "edited" = "";
 let editing = false;
 
-const canvasPx = () => Math.max(300, Math.round(canvas.clientWidth * Math.min(devicePixelRatio, 2)));
+const dpr = () => Math.min(devicePixelRatio, 2);
+/** Canvas size in device pixels: the whole window when live, a square when still. */
+const canvasPx = (): [number, number] => {
+    const w = Math.max(300, Math.round(canvas.clientWidth * dpr()));
+    return VIEW === "live" ? [w, Math.max(300, Math.round(canvas.clientHeight * dpr()))] : [w, w];
+};
+/** World units (1000 across the shorter side, centred) ⇄ page pixels. */
+function worldScale() {
+    const r = canvas.getBoundingClientRect();
+    return { r, k: Math.min(r.width, r.height) / WORLD, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+}
 const style = () => {
     const st = state.style;
     return { c0: hexToRgb(st.paper), c1: hexToRgb(st.paper2) };
@@ -47,7 +58,7 @@ let finished = false;
 let onFinish: (() => void) | null = null;
 
 function stillRestart() {
-    renderer.resize(canvasPx());
+    renderer.resize(...canvasPx());
     engine = new Engine(structuredClone(state));
     budget = new Budget();
     const { c0, c1 } = style();
@@ -106,11 +117,12 @@ let gravity: [number, number] = [0, 0];
 const tierScale = () => (tier === 0 ? 0.35 : tier === 1 ? 0.5 : tier === 2 ? 0.75 : 1);
 
 function liveRestart() {
-    renderer.resize(Math.round(canvasPx() * Math.max(0.5, tierScale())));
+    const [w, h] = canvasPx();
+    const cs = Math.max(0.5, tierScale()), ts = tierScale();
+    renderer.resize(Math.round(w * cs), Math.round(h * cs));
     sim = new Sim(structuredClone(state), TIERS[tier]);
-    const px = Math.round(canvasPx() * tierScale());
     const { c0, c1 } = style();
-    renderer.trailsReset(px, c0, c1, state.style.grain, state.seed);
+    renderer.trailsReset(Math.round(w * ts), Math.round(h * ts), c0, c1, state.style.grain, state.seed);
     acc = 0;
 }
 
@@ -265,9 +277,9 @@ function showBudget(b: ReturnType<Budget["result"]>) {
 // Tap: a new design. Drag: stir. Hold still: pull. Right-drag, shift or two
 // fingers: push. Hovering with a mouse stirs gently. Tilting a phone tips the flow.
 
-const toWorld = (e: PointerEvent): [number, number] => {
-    const r = canvas.getBoundingClientRect();
-    return [((e.clientX - r.left) / r.width) * WORLD, ((e.clientY - r.top) / r.height) * WORLD];
+const toWorld = (e: { clientX: number; clientY: number }): [number, number] => {
+    const { k, cx, cy } = worldScale();
+    return [WORLD / 2 + (e.clientX - cx) / k, WORLD / 2 + (e.clientY - cy) / k];
 };
 let press = { t: 0, x: 0, y: 0, moved: 0, id: -1, touches: 0 };
 let holdTimer = 0;
@@ -329,6 +341,7 @@ function askForTilt() {
 addEventListener("keydown", e => {
     if ((e.target as HTMLElement).closest("input, select, textarea, button")) return;
     if (e.code === "Space") { e.preventDefault(); newDesign(); }
+    if (e.key === "f") toggleFullscreen();
 });
 
 // ---------- direct handles (while editing) ----------
@@ -352,19 +365,18 @@ function handleList(): Handle[] {
 
 function placeHandles() {
     if (!editing) { handles.replaceChildren(); return; }
-    const rect = canvas.getBoundingClientRect(), base = stage.getBoundingClientRect();
-    const k = rect.width / WORLD;
+    const base = stage.getBoundingClientRect();
+    const at = (x: number, y: number) => {
+        const { k, cx, cy } = worldScale();
+        return `left:${cx - base.left + (x - WORLD / 2) * k}px;top:${cy - base.top + (y - WORLD / 2) * k}px`;
+    };
     handles.replaceChildren(...handleList().map(hd => {
-        const [x, y] = hd.get();
-        const el = h("div", { class: `handle${hd.main ? " main" : ""}`, title: `drag: ${hd.label}`, style: `left:${rect.left - base.left + x * k}px;top:${rect.top - base.top + y * k}px` }, h("span", {}, hd.label));
+        const el = h("div", { class: `handle${hd.main ? " main" : ""}`, title: `drag: ${hd.label}`, style: at(...hd.get()) }, h("span", {}, hd.label));
         el.addEventListener("pointerdown", e => {
             el.setPointerCapture(e.pointerId);
             const moveTo = (ev: PointerEvent) => {
-                const r = canvas.getBoundingClientRect();
-                hd.set(((ev.clientX - r.left) / r.width) * WORLD, ((ev.clientY - r.top) / r.height) * WORLD);
-                const [nx, ny] = hd.get();
-                el.style.left = `${r.left - base.left + nx * k}px`;
-                el.style.top = `${r.top - base.top + ny * k}px`;
+                hd.set(...toWorld(ev));
+                el.setAttribute("style", at(...hd.get()));
                 dirty = true;
             };
             el.addEventListener("pointermove", moveTo);
@@ -410,6 +422,27 @@ function flash(sel: string, text: string) {
 }
 
 $("#new").addEventListener("click", newDesign);
+
+// fullscreen, and controls that step aside when you're just watching
+function toggleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+}
+$("#full").addEventListener("click", toggleFullscreen);
+if (!document.fullscreenEnabled) $("#full").hidden = true; // e.g. iPhone Safari can't fullscreen a page
+document.addEventListener("fullscreenchange", () => { $("#full").textContent = document.fullscreenElement ? "exit" : "⤢ full"; dirty = true; });
+
+const bootTime = performance.now();
+let idleTimer = 0;
+function wake() {
+    document.body.classList.remove("idle");
+    clearTimeout(idleTimer);
+    // always visible for the first 5 s, then hidden after 3 s of stillness
+    const wait = Math.max(3000, 5000 - (performance.now() - bootTime));
+    idleTimer = window.setTimeout(() => { if (!editing && VIEW === "live") document.body.classList.add("idle"); }, wait);
+}
+for (const ev of ["pointermove", "pointerdown", "keydown", "touchstart"]) addEventListener(ev, wake, { passive: true });
+wake();
 $("#edit").addEventListener("click", () => setEditing(!editing));
 $("#close").addEventListener("click", () => setEditing(false));
 $("#pause").addEventListener("click", () => {

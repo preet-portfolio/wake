@@ -10,7 +10,7 @@ layout(location=0) in vec2 corner;     // x: 0..1 along, y: -1..1 across
 layout(location=1) in vec4 seg;        // x0 y0 x1 y1 in world units
 layout(location=2) in float u;         // position along the line, 0..1
 uniform float width;                   // world units
-uniform float world;
+uniform vec2 view;                     // world units visible across x and y (1000 on the shorter side)
 uniform float soft;
 uniform bool usePalette;
 uniform vec3 pa, pb, pc, pd;           // cosine palette
@@ -26,7 +26,8 @@ void main() {
     vec2 nrm = vec2(-dir.y, dir.x);
     float w = width * (1.0 + 2.0 * soft);   // soft lines are drawn wider and fade out
     vec2 p = mix(a - dir * w * 0.5, b + dir * w * 0.5, corner.x) + nrm * corner.y * w * 0.5;
-    gl_Position = vec4(p.x / world * 2.0 - 1.0, 1.0 - p.y / world * 2.0, 0.0, 1.0);
+    // world centre (500, 500) sits at the centre of the target, at any aspect ratio
+    gl_Position = vec4((p.x - 500.0) / (view.x * 0.5), -(p.y - 500.0) / (view.y * 0.5), 0.0, 1.0);
     vColor = usePalette ? clamp(pa + pb * cos(6.2831853 * (pc * (u * spread + phase) + pd)), 0.0, 1.0) : ink;
     vAcross = corner.y;
 }`;
@@ -52,11 +53,12 @@ void main() { uv = P[gl_VertexID] * 0.5 + 0.5; gl_Position = vec4(P[gl_VertexID]
 
 const BG_LIB = `
 uniform vec3 c0, c1;
+uniform vec2 aspect;   // target size / shorter side, so the gradient stays round
 uniform float grain;
 uniform float seed;
 float hash(vec2 p) { p = fract(p * vec2(443.897, 441.423) + seed); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }
 vec3 ground(vec2 uv) {
-    float r = clamp(length(uv - 0.5) * 1.35, 0.0, 1.0);
+    float r = clamp(length((uv - 0.5) * aspect) * 1.35, 0.0, 1.0);
     return mix(c0, c1, r * r) + (hash(floor(uv * 2048.0)) - 0.5) * grain * 0.22;
 }`;
 
@@ -137,7 +139,9 @@ export class Renderer {
     private tex: WebGLTexture[] = [];
     private fbo: WebGLFramebuffer[] = [];
     private cur = 0;
-    private trailSize = 0;
+    private trailW = 0;
+    private trailH = 0;
+    private view: [number, number] = [WORLD, WORLD];
     private probe: { fbo: WebGLFramebuffer; tex: WebGLTexture } | null = null;
     /** half-float trail buffers where the GPU can render to them (smoother fades), else 8-bit */
     readonly floatTrails: boolean;
@@ -151,8 +155,7 @@ export class Renderer {
         this.fade = program(gl, BG_VS, FADE_FS);
         this.present = program(gl, BG_VS, PRESENT_FS);
         this.floatTrails = !!gl.getExtension("EXT_color_buffer_float");
-        gl.useProgram(this.line.prog);
-        gl.uniform1f(this.line.u("world"), WORLD);
+
 
         this.lineVao = gl.createVertexArray()!;
         gl.bindVertexArray(this.lineVao);
@@ -173,11 +176,14 @@ export class Renderer {
         gl.bindVertexArray(null);
     }
 
-    resize(px: number) {
-        if (this.canvas.width !== px) {
-            this.canvas.width = px;
-            this.canvas.height = px;
+    /** Size the canvas in device pixels; the world (1000 units) spans its shorter side. */
+    resize(w: number, h = w) {
+        if (this.canvas.width !== w || this.canvas.height !== h) {
+            this.canvas.width = w;
+            this.canvas.height = h;
         }
+        const m = Math.min(w, h);
+        this.view = [(WORLD * w) / m, (WORLD * h) / m];
         this.bindCanvas();
     }
 
@@ -195,24 +201,25 @@ export class Renderer {
         const gl = this.gl;
         gl.uniform3fv(p.u("c0"), c0);
         gl.uniform3fv(p.u("c1"), c1);
+        gl.uniform2f(p.u("aspect"), this.view[0] / WORLD, this.view[1] / WORLD);
         gl.uniform1f(p.u("grain"), grain);
         gl.uniform1f(p.u("seed"), (seed % 1000) / 1000);
     }
 
     // ---------- trails (live simulation) ----------
 
-    /** (Re)create the two trail buffers at px × px and fill them with the ground. */
-    trailsReset(px: number, c0: [number, number, number], c1: [number, number, number], grain: number, seed: number) {
+    /** (Re)create the two trail buffers at w × h and fill them with the ground. */
+    trailsReset(w: number, h: number, c0: [number, number, number], c1: [number, number, number], grain: number, seed: number) {
         const gl = this.gl;
-        if (px !== this.trailSize) {
+        if (w !== this.trailW || h !== this.trailH) {
             this.tex.forEach(t => gl.deleteTexture(t));
             this.fbo.forEach(f => gl.deleteFramebuffer(f));
             this.tex = []; this.fbo = [];
             for (let i = 0; i < 2; i++) {
                 const t = gl.createTexture()!;
                 gl.bindTexture(gl.TEXTURE_2D, t);
-                if (this.floatTrails) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, px, px, 0, gl.RGBA, gl.HALF_FLOAT, null);
-                else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, px, px, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                if (this.floatTrails) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+                else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -222,11 +229,12 @@ export class Renderer {
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
                 this.tex.push(t); this.fbo.push(f);
             }
-            this.trailSize = px;
+            this.trailW = w;
+            this.trailH = h;
         }
         for (const f of this.fbo) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-            gl.viewport(0, 0, px, px);
+            gl.viewport(0, 0, w, h);
             this.clear(c0, c1, grain, seed);
         }
         this.cur = 0;
@@ -236,7 +244,7 @@ export class Renderer {
     trailsFade(fade: number, c0: [number, number, number], c1: [number, number, number], grain: number, seed: number, frame: number) {
         const gl = this.gl, next = 1 - this.cur;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo[next]);
-        gl.viewport(0, 0, this.trailSize, this.trailSize);
+        gl.viewport(0, 0, this.trailW, this.trailH);
         gl.disable(gl.BLEND);
         gl.useProgram(this.fade.prog);
         gl.bindVertexArray(this.bgVao);
@@ -337,8 +345,9 @@ export class Renderer {
         gl.uniform1f(U("alpha"), st.alpha);
         gl.uniform1f(U("soft"), st.soft);
         // never thinner than one pixel of the current target, or lines shimmer
-        const target = gl.getParameter(gl.FRAMEBUFFER_BINDING) ? this.trailSize : this.canvas.width;
+        const target = gl.getParameter(gl.FRAMEBUFFER_BINDING) ? Math.min(this.trailW, this.trailH) : Math.min(this.canvas.width, this.canvas.height);
         gl.uniform1f(U("width"), Math.max(st.width, WORLD / target));
+        gl.uniform2f(U("view"), this.view[0], this.view[1]);
         gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count);
     }
 }

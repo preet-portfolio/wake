@@ -89,3 +89,23 @@ test("freeze & plot saves an SVG of the current trails", async ({ page }) => {
     expect((svg.match(/<path /g) ?? []).length).toBeGreaterThan(100);
     await expect(page.locator(".toast")).toContainText("SVG saved");
 });
+
+test("the drawing fills the window, and controls step aside when you're just watching", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 820 });
+    await page.goto("/");
+    await page.waitForFunction(() => (window as any).wake);
+    const box = (await page.locator("#art").boundingBox())!;
+    expect(box.width).toBe(1440);
+    expect(box.height).toBe(820);
+    // visible on arrival, so people find them
+    await expect(page.locator(".dock")).toHaveCSS("opacity", "1");
+    // hidden after a while without movement...
+    await page.waitForTimeout(6500);
+    await expect(page.locator("body")).toHaveClass(/idle/);
+    // ...and back on the first movement
+    await page.mouse.move(200, 200);
+    await expect(page.locator("body")).not.toHaveClass(/idle/);
+    // ✦ new sits in a corner, not over the middle of the drawing
+    const nb = (await page.locator("#new").boundingBox())!;
+    expect(nb.x + nb.width).toBeLessThan(1440 * 0.3);
+});

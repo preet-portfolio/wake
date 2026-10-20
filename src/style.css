@@ -18,7 +18,9 @@ body { transition: background .6s; }
 body.dark { color: #e9e6df; --mute: #9a958a; --rule: #3a3833; }
 
 .stage { position: absolute; inset: 0; display: grid; place-items: center; }
-#art { width: min(100vw, 100vh); width: min(100vw, 100dvh); aspect-ratio: 1; display: block; touch-action: none; cursor: crosshair; }
+#art { display: block; touch-action: none; cursor: crosshair; }
+body.live #art { width: 100vw; height: 100vh; height: 100dvh; }
+body.still #art { width: min(100vw, 100vh); width: min(100vw, 100dvh); aspect-ratio: 1; }
 .stage.drawing #art { outline: 2px dashed var(--red); }
 .draw-hint { display: none; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--red); color: var(--sheet); padding: 3px 10px; }
 .stage.drawing .draw-hint { display: block; }
@@ -28,15 +30,18 @@ body.dark { color: #e9e6df; --mute: #9a958a; --rule: #3a3833; }
 .mark h1 { font: italic 40px/0.9 var(--serif); margin: 0; letter-spacing: -0.5px; }
 .number { color: var(--mute); margin-top: 4px; }
 
-.dock { position: absolute; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); transform: translateX(-50%); text-align: center; }
-.new { font: italic 30px/1 var(--serif); padding: 14px 34px 16px; min-width: 150px; min-height: 56px; border-radius: 999px; border: 0; cursor: pointer; color: #1c1b18;
-       background: linear-gradient(100deg, #ffd6a5, #fdffb6, #caffbf, #9bf6ff, #bdb2ff, #ffc6ff); background-size: 200% 100%;
-       box-shadow: 0 6px 30px -6px #0006; animation: shimmer 6s linear infinite; transition: transform .15s; }
+/* the new-design button lives in the corner, out of the artwork */
+.dock { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; }
+.new { font: italic 30px/1 var(--serif); padding: 12px 30px 14px; min-width: 150px; min-height: 56px; border-radius: 999px; cursor: pointer; color: #fff;
+       background: linear-gradient(100deg, #ffd6a540, #caffbf40, #9bf6ff40, #bdb2ff40, #ffc6ff40); background-size: 200% 100%;
+       border: 1px solid #ffffff55; -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+       box-shadow: 0 8px 30px -10px #0008, inset 0 1px 0 #ffffff40; animation: shimmer 8s linear infinite; transition: transform .15s, background-color .2s; }
+body:not(.dark) .new { color: #1c1b18; border-color: #1c1b1830; background-color: #ffffff60; }
 .new:hover { transform: scale(1.05); }
 .new:active { transform: scale(0.97); }
 @keyframes shimmer { to { background-position: 200% 0; } }
 @media (prefers-reduced-motion: reduce) { .new { animation: none; } }
-.hint { margin: 8px 0 0; color: var(--mute); font-size: 11px; text-shadow: 0 0 6px var(--paper); }
+.hint { margin: 0; color: var(--mute); font-size: 11px; line-height: 1.5; text-shadow: 0 0 6px var(--paper); }
 body.dark .hint { text-shadow: 0 0 6px #000; }
 
 .tools { position: absolute; right: 14px; bottom: max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 4px; }
@@ -46,6 +51,10 @@ body.dark .tools button, body.dark .tools a { background: #0006; }
 .tools button[aria-pressed=true] { background: var(--ink); color: var(--sheet); }
 
 body.instant .mark, body.instant .dock, body.instant .tools { display: none; }
+/* when you're just watching, everything but the drawing steps aside */
+.mark, .dock, .tools { transition: opacity .8s ease; }
+body.idle .mark, body.idle .dock, body.idle .tools { opacity: 0; pointer-events: none; }
+body.idle #art { cursor: none; }
 .toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: 8px 14px; max-width: min(90vw, 560px); z-index: 10; }
 
 .handles { position: absolute; inset: 0; pointer-events: none; }
@@ -122,4 +131,5 @@ button:hover { border-color: var(--ink); }
     .panel { width: 100%; top: 40%; border-left: 0; border-top: 1px solid var(--rule); }
     body.editing .tools { right: 10px; }
     .new { font-size: 28px; }
+    .hint { display: none; }
 }
