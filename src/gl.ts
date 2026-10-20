@@ -50,19 +50,52 @@ const vec2 P[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
 out vec2 uv;
 void main() { uv = P[gl_VertexID] * 0.5 + 0.5; gl_Position = vec4(P[gl_VertexID], 0.0, 1.0); }`;
 
-const BG_FS = `#version 300 es
-precision highp float;
-in vec2 uv;
+const BG_LIB = `
 uniform vec3 c0, c1;
 uniform float grain;
 uniform float seed;
-out vec4 outColor;
 float hash(vec2 p) { p = fract(p * vec2(443.897, 441.423) + seed); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }
-void main() {
+vec3 ground(vec2 uv) {
     float r = clamp(length(uv - 0.5) * 1.35, 0.0, 1.0);
-    vec3 c = mix(c0, c1, r * r);
-    c += (hash(gl_FragCoord.xy) - 0.5) * grain * 0.22;
-    outColor = vec4(c, 1.0);
+    return mix(c0, c1, r * r) + (hash(floor(uv * 2048.0)) - 0.5) * grain * 0.22;
+}`;
+
+const BG_FS = `#version 300 es
+precision highp float;
+in vec2 uv;
+${BG_LIB}
+out vec4 outColor;
+void main() { outColor = vec4(ground(uv), 1.0); }`;
+
+// trail fade: last frame moves a little toward the ground; the dither lets
+// 8-bit buffers reach the ground exactly instead of leaving ghosts
+const FADE_FS = `#version 300 es
+precision highp float;
+in vec2 uv;
+uniform sampler2D prev;
+uniform float fade;
+uniform float frame;
+${BG_LIB}
+out vec4 outColor;
+void main() {
+    vec3 p = texture(prev, uv).rgb;
+    vec3 c = mix(p, ground(uv), fade);
+    float d = fract(sin(dot(gl_FragCoord.xy + frame, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    outColor = vec4(c + d / 255.0, 1.0);
+}`;
+
+const PRESENT_FS = `#version 300 es
+precision highp float;
+in vec2 uv;
+uniform sampler2D tex;
+uniform bool rolloff;
+out vec4 outColor;
+void main() {
+    vec3 c = texture(tex, uv).rgb;
+    // light piles up past 1.0 in the half-float trails: roll highlights off
+    // smoothly (identity below ~0.6) instead of clipping to flat white
+    if (rolloff) c = mix(c, 1.0 - 0.4 * exp(-(c - 0.6) / 0.4), step(0.6, c));
+    outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
 function program(gl: WebGL2RenderingContext, vs: string, fs: string) {
@@ -99,6 +132,15 @@ export class Renderer {
     private bg: ReturnType<typeof program>;
     private lineVao: WebGLVertexArrayObject;
     private bgVao: WebGLVertexArrayObject;
+    private fade: ReturnType<typeof program>;
+    private present: ReturnType<typeof program>;
+    private tex: WebGLTexture[] = [];
+    private fbo: WebGLFramebuffer[] = [];
+    private cur = 0;
+    private trailSize = 0;
+    private probe: { fbo: WebGLFramebuffer; tex: WebGLTexture } | null = null;
+    /** half-float trail buffers where the GPU can render to them (smoother fades), else 8-bit */
+    readonly floatTrails: boolean;
 
     constructor(readonly canvas: HTMLCanvasElement) {
         const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true, antialias: true, premultipliedAlpha: true });
@@ -106,6 +148,9 @@ export class Renderer {
         this.gl = gl;
         this.line = program(gl, LINE_VS, LINE_FS);
         this.bg = program(gl, BG_VS, BG_FS);
+        this.fade = program(gl, BG_VS, FADE_FS);
+        this.present = program(gl, BG_VS, PRESENT_FS);
+        this.floatTrails = !!gl.getExtension("EXT_color_buffer_float");
         gl.useProgram(this.line.prog);
         gl.uniform1f(this.line.u("world"), WORLD);
 
@@ -133,7 +178,7 @@ export class Renderer {
             this.canvas.width = px;
             this.canvas.height = px;
         }
-        this.gl.viewport(0, 0, px, px);
+        this.bindCanvas();
     }
 
     /** Paint the background: a radial gradient from c0 (centre) to c1 (edge), plus grain. */
@@ -142,11 +187,119 @@ export class Renderer {
         gl.disable(gl.BLEND);
         gl.useProgram(this.bg.prog);
         gl.bindVertexArray(this.bgVao);
-        gl.uniform3fv(this.bg.u("c0"), c0);
-        gl.uniform3fv(this.bg.u("c1"), c1);
-        gl.uniform1f(this.bg.u("grain"), grain);
-        gl.uniform1f(this.bg.u("seed"), (seed % 1000) / 1000);
+        this.groundUniforms(this.bg, c0, c1, grain, seed);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    private groundUniforms(p: ReturnType<typeof program>, c0: number[], c1: number[], grain: number, seed: number) {
+        const gl = this.gl;
+        gl.uniform3fv(p.u("c0"), c0);
+        gl.uniform3fv(p.u("c1"), c1);
+        gl.uniform1f(p.u("grain"), grain);
+        gl.uniform1f(p.u("seed"), (seed % 1000) / 1000);
+    }
+
+    // ---------- trails (live simulation) ----------
+
+    /** (Re)create the two trail buffers at px × px and fill them with the ground. */
+    trailsReset(px: number, c0: [number, number, number], c1: [number, number, number], grain: number, seed: number) {
+        const gl = this.gl;
+        if (px !== this.trailSize) {
+            this.tex.forEach(t => gl.deleteTexture(t));
+            this.fbo.forEach(f => gl.deleteFramebuffer(f));
+            this.tex = []; this.fbo = [];
+            for (let i = 0; i < 2; i++) {
+                const t = gl.createTexture()!;
+                gl.bindTexture(gl.TEXTURE_2D, t);
+                if (this.floatTrails) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, px, px, 0, gl.RGBA, gl.HALF_FLOAT, null);
+                else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, px, px, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                const f = gl.createFramebuffer()!;
+                gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+                this.tex.push(t); this.fbo.push(f);
+            }
+            this.trailSize = px;
+        }
+        for (const f of this.fbo) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+            gl.viewport(0, 0, px, px);
+            this.clear(c0, c1, grain, seed);
+        }
+        this.cur = 0;
+    }
+
+    /** Fade the trails one frame toward the ground, then leave the fresh buffer bound for drawing. */
+    trailsFade(fade: number, c0: [number, number, number], c1: [number, number, number], grain: number, seed: number, frame: number) {
+        const gl = this.gl, next = 1 - this.cur;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo[next]);
+        gl.viewport(0, 0, this.trailSize, this.trailSize);
+        gl.disable(gl.BLEND);
+        gl.useProgram(this.fade.prog);
+        gl.bindVertexArray(this.bgVao);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.tex[this.cur]);
+        gl.uniform1i(this.fade.u("prev"), 0);
+        gl.uniform1f(this.fade.u("fade"), fade);
+        gl.uniform1f(this.fade.u("frame"), frame % 997);
+        this.groundUniforms(this.fade, c0, c1, grain, seed);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        this.cur = next;
+    }
+
+    /** Copy the trails to the visible canvas. */
+    trailsPresent(rolloff: boolean) {
+        const gl = this.gl;
+        this.rolloff = rolloff;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        this.blit();
+    }
+
+    private rolloff = false;
+
+    private blit() {
+        const gl = this.gl;
+        gl.disable(gl.BLEND);
+        gl.useProgram(this.present.prog);
+        gl.uniform1i(this.present.u("rolloff"), this.rolloff ? 1 : 0);
+        gl.bindVertexArray(this.bgVao);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.tex[this.cur]);
+        gl.uniform1i(this.present.u("tex"), 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    /** Luminance of a 32 × 32 version of the trails, for automatic exposure. */
+    trailsProbe(): Uint8Array {
+        const gl = this.gl, S = 32;
+        if (!this.probe) {
+            const tex = gl.createTexture()!;
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            const fbo = gl.createFramebuffer()!;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+            this.probe = { fbo, tex };
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.probe.fbo);
+        gl.viewport(0, 0, S, S);
+        this.blit();
+        const px = new Uint8Array(S * S * 4);
+        gl.readPixels(0, 0, S, S, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        const lum = new Uint8Array(S * S);
+        for (let i = 0; i < S * S; i++) lum[i] = (px[4 * i] * 54 + px[4 * i + 1] * 183 + px[4 * i + 2] * 19) >> 8;
+        return lum;
+    }
+
+    /** Bind the visible canvas as the drawing target (still mode). */
+    bindCanvas() {
+        const gl = this.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     }
 
     draw(segs: Float32Array, count: number, st: LineStyle) {
@@ -183,8 +336,9 @@ export class Renderer {
         gl.uniform3fv(U("ink"), st.ink);
         gl.uniform1f(U("alpha"), st.alpha);
         gl.uniform1f(U("soft"), st.soft);
-        // never thinner than one device pixel, or lines shimmer
-        gl.uniform1f(U("width"), Math.max(st.width, WORLD / this.canvas.width));
+        // never thinner than one pixel of the current target, or lines shimmer
+        const target = gl.getParameter(gl.FRAMEBUFFER_BINDING) ? this.trailSize : this.canvas.width;
+        gl.uniform1f(U("width"), Math.max(st.width, WORLD / target));
         gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count);
     }
 }

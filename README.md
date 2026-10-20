@@ -8,11 +8,14 @@ A drawing is a **seed shape** plus an **ordered stack of blocks** (rotate, scale
 - **Case study:** `case.html` (also served at `/case.html`)
 - **First-use test plan:** [docs/first-use-test.md](docs/first-use-test.md)
 
+## Live
+What visitors see is a simulation. Line-heads (500–32,000, chosen per device from measured frame time) start on the seed shape and move through the block stack as a field of forces, with curl-noise **flow**. They leave marks on a fading trail buffer, and respawn when their life is over. **Drag** to stir, **hold** to pull, **right-drag or shift** to push, and tilt a phone to tip the flow. **✦ new**, a tap or **space** gives a new design. **plot** freezes time and saves the current trails as a plotter SVG. `?still` shows the exact still drawing, `?particles=8000` fixes the count and `?fps` shows the meter.
+
 ## A collection of 100,000
 Every number from 1 to 100,000 is one fixed design (`#n=48213`). One in five is an **ink** piece (paper and pen, within the plot budget), and the rest are **colour** pieces (cosine-palette gradients, additive glow, soft edges, grain). Candidates are judged on the CPU only, so a number gives the same design on every device. `✦ colour` and `◯ ink` pull a random number; editing turns it into your own `#s=` link.
 
 ## Every visit is new
-Opening wake without a link shows a random design from the collection, and the drawing then **drifts**: every parameter breathes slowly around the value you set, so changing a setting moves the centre it drifts around. **❚❚ hold** freezes the exact frame into a shareable link. Links always open still. Drift is off when the visitor asks for reduced motion, and it holds itself on devices that can't redraw at 20 fps or better. `?still` disables drift.
+Opening wake without a link shows a random design from the collection, already moving. Links open the same design, also moving. **❚❚** pauses. Visitors who ask for reduced motion start paused.
 
 ## Run
 ```sh
@@ -29,7 +32,9 @@ npm run build       # static site in dist/
 
 ## Checks
 ```sh
-npx playwright test            # visual regression (20 states), determinism, fps
+npx playwright test            # still-view regression, determinism, collection, live, 60 s alive checks, videos
+npx playwright test alive      # 60 s changed-pixels check on GPU and software rendering → reports/alive.json
+npx playwright test video      # first 10 s on desktop and phone → reports/videos/
 npx playwright test fps        # phone-emulated fps → reports/fps.json
 npm run jscpd                  # copy check against uji's original source → reports/jscpd/
 node scripts/gif.mjs           # case-study GIFs (needs `npx vite --port 5179` running)

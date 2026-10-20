@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { designFor, modeOf } from "../src/design";
 import { DESIGNS } from "../src/model";
 import { encode } from "../src/state";
+import { budget } from "../src/export";
 
 const NUMBERS = [1, 2, 5, 808, 4444, 12345, 99999, DESIGNS];
 
@@ -31,23 +32,17 @@ test("a number gives the same SVG every time", async ({ page }) => {
     }
 });
 
-test("one in five numbers is an ink piece, and ink pieces fit the plot budget", async ({ page }) => {
+test("one in five numbers is an ink piece, and ink pieces fit the plot budget", () => {
     expect(modeOf(500)).toBe("ink");
     expect(modeOf(501)).toBe("colour");
+    // 100 ink numbers spread across the collection, judged with the same budget as plotcheck.py
     let pass = 0;
-    const inks = [5, 500, 1000, 5000, 12340, 20000, 45675, 99995];
-    for (const n of inks) {
-        await page.goto(`/?instant#n=${n}`);
-        await page.waitForFunction(() => (window as any).wake);
-        await page.evaluate(() => (window as any).wake.whenDone());
-        if (await page.evaluate(() => (window as any).wake.budget().pass)) pass++;
-        await page.goto("about:blank");
-    }
-    expect(pass, `${pass}/${inks.length} ink pieces plottable`).toBeGreaterThanOrEqual(inks.length - 1);
+    for (let i = 1; i <= 100; i++) if (budget(designFor(i * 5 * 97)).pass) pass++;
+    expect(pass, `${pass}/100 ink pieces plottable`).toBeGreaterThanOrEqual(98);
 });
 
 test("an untouched design shares as a short #n= link; an edit switches to the full state", async ({ page }) => {
-    await page.goto(`/?instant#n=808`);
+    await page.goto(`/?instant&edit#n=808`);
     await page.waitForFunction(() => (window as any).wake);
     await expect(page.locator(".number")).toHaveText("No. 808");
     expect(page.url()).toMatch(/#n=808$/);

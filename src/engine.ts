@@ -1,8 +1,9 @@
 // The engine: a pure, deterministic step function. Each step marks segments
 // between born neighbours, then runs the block stack on every born point.
 // The renderer, the SVG export and the plot budget all use this.
-import { makeRng, noise1, type Rng } from "./rng";
-import { signal, type Param, type Seed, type State } from "./model";
+import { makeRng, type Rng } from "./rng";
+import { delays, stepPoint } from "./field";
+import type { Seed, State } from "./model";
 
 const DEG = Math.PI / 180;
 
@@ -88,6 +89,7 @@ export class Engine {
     count = 0;
     private rng: Rng;
     private delay: Float64Array;
+    private tmp = new Float64Array(2);
     private born: Uint8Array;
 
     constructor(state: State) {
@@ -100,26 +102,10 @@ export class Engine {
         this.segs = new Float32Array(n * SEG * 2);
         this.born = new Uint8Array(n);
         this.delay = new Float64Array(n);
-        // the clock field: every enabled delay block adds to each point's start time
-        for (const b of state.blocks) {
-            if (!b.on || b.k !== "delay") continue;
-            for (let i = 0; i < n; i++) {
-                const u = i / n;
-                const span = this.ev(b.p.span, 0, u);
-                const shifted = (u + (b.p.shift?.b ?? 0)) % 1;
-                this.delay[i] += Math.abs(span) * (span >= 0 ? shifted : 1 - shifted);
-            }
-        }
+        this.delay = delays(state.blocks, n, state.seed);
     }
 
     get done() { return this.n > this.state.steps; }
-
-    // a param's value at local time tau and line position u
-    private ev(p: Param, tau: number, u: number): number {
-        if (!p.t && !p.u) return p.b;
-        const nz = (s: number, x: number) => noise1(this.state.seed + s, x);
-        return p.b * (1 + signal(p.t, tau, 1, nz)) * (1 + signal(p.u, u, 2, nz));
-    }
 
     /** Run one step: mark segments, then move points. Returns the number of segments. */
     step(): number {
@@ -151,56 +137,11 @@ export class Engine {
         if (this.closed) emit(n - 1, 0);
         this.count = c;
 
-        for (const b of state.blocks) {
-            if (!b.on || b.k === "delay") continue;
-            const p = b.p;
-            for (let i = 0; i < n; i++) {
-                if (!born[i]) continue;
-                const tau = t - delay[i];
-                const u = i / n;
-                let x = pts[2 * i], y = pts[2 * i + 1];
-                switch (b.k) {
-                    case "rotate": {
-                        const a = this.ev(p.a, tau, u) * DEG, ox = this.ev(p.ox, tau, u), oy = this.ev(p.oy, tau, u);
-                        const ca = Math.cos(a), sa = Math.sin(a), dx = x - ox, dy = y - oy;
-                        x = ox + dx * ca - dy * sa; y = oy + dx * sa + dy * ca;
-                        break;
-                    }
-                    case "scale": {
-                        const s = this.ev(p.s, tau, u) / 100, sy = this.ev(p.sy, tau, u);
-                        const ox = this.ev(p.ox, tau, u), oy = this.ev(p.oy, tau, u);
-                        x = ox + (x - ox) * (1 + s); y = oy + (y - oy) * (1 + s * sy);
-                        break;
-                    }
-                    case "move":
-                        x += this.ev(p.dx, tau, u); y += this.ev(p.dy, tau, u);
-                        break;
-                    case "wave": {
-                        const a = this.ev(p.a, tau, u) * Math.sin(2 * Math.PI * u * Math.round(this.ev(p.f, tau, u)));
-                        const d = this.ev(p.dir, tau, u) * DEG;
-                        x += a * Math.cos(d); y += a * Math.sin(d);
-                        break;
-                    }
-                    case "jitter": {
-                        const a = this.ev(p.a, tau, u);
-                        x += (rng() - 0.5) * a; y += (rng() - 0.5) * a;
-                        break;
-                    }
-                    case "swirl": {
-                        const ox = this.ev(p.ox, tau, u), oy = this.ev(p.oy, tau, u), dx = x - ox, dy = y - oy;
-                        const a = (this.ev(p.k, tau, u) * DEG) / (1 + Math.hypot(dx, dy) / 100);
-                        const ca = Math.cos(a), sa = Math.sin(a);
-                        x = ox + dx * ca - dy * sa; y = oy + dx * sa + dy * ca;
-                        break;
-                    }
-                    case "attract": {
-                        const k = this.ev(p.k, tau, u) / 100;
-                        x += (this.ev(p.x, tau, u) - x) * k; y += (this.ev(p.y, tau, u) - y) * k;
-                        break;
-                    }
-                }
-                pts[2 * i] = x; pts[2 * i + 1] = y;
-            }
+        const out = this.tmp;
+        for (let i = 0; i < n; i++) {
+            if (!born[i]) continue;
+            stepPoint(state.blocks, pts[2 * i], pts[2 * i + 1], t - delay[i], i / n, state.seed, rng, out);
+            pts[2 * i] = out[0]; pts[2 * i + 1] = out[1];
         }
         this.n++;
         return c;

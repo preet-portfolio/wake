@@ -67,6 +67,12 @@ dd small { color: var(--mute); display: block; margin-top: 2px; }
 <dd>It explains a finding from the tests: for small steps, two transforms applied in either order differ only by a second-order term. That's why reordering wake's blocks changes little unless they're nonlinear.</dd>
 <dt><a href="https://iquilezles.org/articles/palettes/">Cosine palettes</a> — Inigo Quilez</dt>
 <dd>Every colour design's gradient is <i>a + b·cos(2π(c·t + d))</i>, from his article on procedural colour palettes. The twelve named palettes in wake are tuned from that formula.</dd>
+<dt>Curl noise — Robert Bridson, Jim Hourihan &amp; Marcus Nordenstam, “Curl-noise for procedural fluid flow”, SIGGRAPH 2007</dt>
+<dd>The <i>flow</i> block: line-heads follow the curl of a drifting noise field, which has no sources or sinks, so they swirl instead of bunching up.</dd>
+<dt>Gradient noise — Ken Perlin, “An image synthesizer” (1985) and “Improving noise” (2002)</dt>
+<dd>The noise under the curl, with the quintic fade curve from the 2002 paper.</dd>
+<dt><a href="https://www.tylerxhobbs.com/words/flow-fields">“Flow Fields”</a> — Tyler Hobbs, 2020</dt>
+<dd>The essay that frames how marks move through a field of directions; wake's live view is a flow field whose forces come from the block stack.</dd>
 <dt>mulberry32 — Tommy Ettinger</dt>
 <dd>The seeded random number generator behind every random choice in wake, so the same link always gives the same drawing, and each of the 100,000 numbered designs is the same on every device.
 <small>Public domain.</small></dd>
@@ -86,8 +92,8 @@ dd small { color: var(--mute); display: block; margin-top: 2px; }
 <dd>The copy-detection check against uji's source.<small>MIT</small></dd>
 <dt><a href="https://github.com/mattdesl/gifenc">gifenc</a> — Matt DesLauriers · <a href="https://github.com/pngjs/pngjs">pngjs</a></dt>
 <dd>Encoding the case-study GIFs.<small>MIT · MIT</small></dd>
-<dt><a href="https://vercel.com">Vercel</a></dt>
-<dd>Hosting.</dd>
+<dt><a href="https://vercel.com">Vercel</a> and Vercel Web Analytics</dt>
+<dd>Hosting, and anonymous frame-time reporting: once per visit, wake reports the device class (phone, tablet or desktop), the GPU class (hardware or software), how many line-heads the device settled on, and its frame time. No cookies and no personal data.</dd>
 </dl>
 
 <h2>Type</h2>

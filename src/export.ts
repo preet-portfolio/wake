@@ -24,8 +24,13 @@ export function polylines(state: State): number[][] {
 const xmlEscape = (s: string) => s.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
 
 export function toSVG(state: State, share = ""): string {
+    return svgFromLines(polylines(state), state.style.width, share);
+}
+
+/** Plotter SVG from polylines ([x0, y0, x1, y1, ...] in world units). */
+export function svgFromLines(lines: number[][], width: number, share = ""): string {
     const f = (v: number) => Number(v).toFixed(2);
-    const paths = polylines(state).map(l => {
+    const paths = lines.map(l => {
         let d = `M${f(l[0])} ${f(l[1])}`;
         for (let i = 2; i < l.length; i += 2) d += `L${f(l[i])} ${f(l[i + 1])}`;
         return `<path d="${d}"/>`;
@@ -33,7 +38,7 @@ export function toSVG(state: State, share = ""): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${WORLD}" height="${WORLD}" viewBox="0 0 ${WORLD} ${WORLD}">
 <desc>wake ${xmlEscape(share)}</desc>
-<g fill="none" stroke="black" stroke-width="${f(state.style.width)}" stroke-linecap="round" stroke-linejoin="round">
+<g fill="none" stroke="black" stroke-width="${f(width)}" stroke-linecap="round" stroke-linejoin="round">
 ${paths.join("\n")}
 </g>
 </svg>
@@ -77,6 +82,17 @@ export class Budget {
         const minutes = (this.down / 50 + this.lifts * 0.4) / 60;
         return { minutes, coverage, metres: this.down / 1000, pass: minutes <= 45 && coverage <= 1.5 };
     }
+}
+
+/** Plot budget of polylines (used by freeze & plot). */
+export function budgetLines(lines: number[][]) {
+    const b = new Budget();
+    for (const l of lines) {
+        const segs = new Float32Array(((l.length - 2) / 2) * SEG);
+        for (let i = 2, k = 0; i < l.length; i += 2, k++) segs.set([l[i - 2], l[i - 1], l[i], l[i + 1], 0], k * SEG);
+        b.add(segs, (l.length - 2) / 2);
+    }
+    return b.result();
 }
 
 export function budget(state: State) {

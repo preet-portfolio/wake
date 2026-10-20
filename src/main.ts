@@ -1,14 +1,21 @@
 import "./style.css";
 import { Engine } from "./engine";
-import { designFor, modeOf, randomDesign } from "./design";
 import { Renderer } from "./gl";
+import { Sim, type Pointer } from "./sim";
 import { hexToRgb, rotateHue } from "./color";
-import { BLOCKS, DESIGNS, PALETTES, WORLD, newBlock, paletteRgb, type Blend, type Block, type BlockKind, type Palette, type Param, type SeedKind, type SignalKind, type State } from "./model";
+import { designFor, modeOf } from "./design";
+import { BLOCKS, DESIGNS, WORLD, type State } from "./model";
 import { encode, sanitize, shareUrl, stateFromLocation } from "./state";
-import { Budget, download, stamp, toSVG } from "./export";
+import { Budget, budgetLines, download, stamp, svgFromLines, toSVG } from "./export";
+import { buildPanel, h, initPanel, resetOpen } from "./panel";
+import { report } from "./telemetry";
 
 const params = new URLSearchParams(location.search);
 const INSTANT = params.has("instant");
+/** still: the exact, finished drawing (tests, ?still links, plotting); live: the simulation */
+const VIEW: "live" | "still" = INSTANT || params.has("still") ? "still" : "live";
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (INSTANT) document.body.classList.add("instant"); // render-only: no controls over the drawing
 
 const fresh = !/(s=[\w-]+|n=\d+)/.test(location.hash);
 let state: State = stateFromLocation();
@@ -16,181 +23,184 @@ const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as
 const canvas = $<HTMLCanvasElement>("#art");
 const stage = $<HTMLDivElement>(".stage");
 const handles = $<HTMLDivElement>(".handles");
-const panel = $<HTMLDivElement>(".panel-body");
 const meter = $<HTMLDivElement>(".budget");
+const numberEl = $<HTMLDivElement>(".number");
+const panelEl = $<HTMLElement>(".panel");
 const renderer = new Renderer(canvas);
 
-// ---------- player ----------
+let dirty = true;
+let paused = reducedMotion && VIEW === "live";
+let variant: "" | "edited" = "";
+let editing = false;
+
+const canvasPx = () => Math.max(300, Math.round(canvas.clientWidth * Math.min(devicePixelRatio, 2)));
+const style = () => {
+    const st = state.style;
+    return { c0: hexToRgb(st.paper), c1: hexToRgb(st.paper2) };
+};
+
+// ---------- still view: the exact drawing, step by step ----------
 
 let engine: Engine;
 let budget: Budget;
-let current: State = state;   // what is on the canvas: the state, or a drifted copy of it
-let dirty = true;
 let finished = false;
 let onFinish: (() => void) | null = null;
 
-// ---------- drift ----------
-// A fresh visit gets a new design, and it keeps shifting by itself: every
-// parameter breathes slowly around the value you set. Holding it freezes the
-// current frame into the state. Shared links open still, exactly as shared.
-
-const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-let drifting = fresh && !INSTANT && !params.has("still");
-let driftHeld = reducedMotion;
-let phase = 0;
-let lastTime = performance.now();
-let lastBudgetShown = 0;
-let frameMs = 0;      // smoothed real time between frames while drifting
-let driftFrames = 0;
-
-const isDrifting = () => drifting && !driftHeld;
-
-function drifted(s: State, t: number): State {
-    const d = structuredClone(s);
-    d.blocks.forEach((b, j) => {
-        BLOCKS[b.k].params.forEach(([name, , lo, hi], k) => {
-            if (name === "f" || name === "dir") return; // integer-ish knobs would pop
-            const p = b.p[name];
-            const origin = /^(ox|oy|x|y)$/.test(name);
-            const amp = origin ? 70 : (k === 0 ? 0.06 : 0.03) * (hi - lo);
-            const w = 0.07 + 0.05 * ((j * 7 + k * 3) % 5);
-            p.b = Math.min(hi, Math.max(lo, p.b + amp * Math.sin(t * w + j * 1.7 + k * 2.3)));
-        });
-    });
-    d.shape.rot = (s.shape.rot + 25 * Math.sin(t * 0.05)) % 360;
-    d.style.shift = s.style.shift + t * 0.015; // colours slowly flow
-    d.shape.r = s.shape.r * (1 + 0.04 * Math.sin(t * 0.09 + 1));
-    return d;
-}
-
-const shown = (): State => (isDrifting() ? drifted(state, phase) : state);
-
-function restart() {
-    const px = Math.round(Math.min(stage.clientWidth, stage.clientHeight) * Math.min(devicePixelRatio, 2));
-    renderer.resize(Math.max(px, 300));
-    current = shown();
-    engine = new Engine(structuredClone(current));
+function stillRestart() {
+    renderer.resize(canvasPx());
+    engine = new Engine(structuredClone(state));
     budget = new Budget();
-    const st = current.style;
-    renderer.clear(hexToRgb(st.paper), hexToRgb(st.paper2), st.grain, current.seed);
+    const { c0, c1 } = style();
+    renderer.clear(c0, c1, state.style.grain, state.seed);
     finished = false;
-    dirty = false;
 }
 
-function stepOnce() {
+function stillStep() {
     const s = engine.n;
     const c = engine.step();
     budget.add(engine.segs, c);
-    const st = current.style;
+    const st = state.style;
     const ink = hexToRgb(st.ink);
     renderer.draw(engine.segs, c, {
         ink: st.hue ? rotateHue(ink, st.hue * s) : ink,
-        palette: st.palette,
-        spread: st.spread,
-        phase: st.shift + (st.cycle * s) / Math.max(1, current.steps),
-        blend: st.blend,
-        soft: st.soft,
-        alpha: st.alpha,
+        palette: st.palette, spread: st.spread,
+        phase: st.shift + (st.cycle * s) / Math.max(1, state.steps),
+        blend: st.blend, soft: st.soft, alpha: st.alpha, width: st.width,
+    });
+}
+
+function stillFrame() {
+    if (dirty) { stillRestart(); dirty = false; }
+    if (!engine.done) {
+        const until = performance.now() + (INSTANT ? 1e9 : 9);
+        do stillStep(); while (!engine.done && performance.now() < until);
+    }
+    if (engine.done && !finished) {
+        finished = true;
+        showBudget(budget.result());
+        onFinish?.();
+        onFinish = null;
+    }
+}
+
+// ---------- live view: the simulation ----------
+// Particle counts are chosen per device: start from a guess, measure real
+// frame time for two seconds, step down while frames are slow, up once if
+// they are fast. It never pauses itself: a slow device gets fewer line-heads.
+
+const TIERS = [500, 1000, 2000, 4000, 8000, 16000, 32000];
+const coarse = matchMedia("(pointer: coarse)").matches;
+let tier = coarse ? 3 : 4;
+if (params.has("particles")) tier = Math.max(0, TIERS.indexOf(+params.get("particles")!));
+let sim: Sim;
+let exposure = 1;
+let acc = 0;
+let lastTime = performance.now();
+let liveFrames = 0;
+let tierClock = { start: 0, frames: 0, sum: 0, settled: params.has("particles") };
+const pointer: Pointer & { lastMove: number; down: boolean } = { x: 0, y: 0, vx: 0, vy: 0, mode: "none", lastMove: 0, down: false };
+let gravity: [number, number] = [0, 0];
+
+// slow tiers draw at a lower resolution: the full-screen passes (fade, present)
+// cost more than the line-heads on a device without a fast GPU
+const tierScale = () => (tier === 0 ? 0.35 : tier === 1 ? 0.5 : tier === 2 ? 0.75 : 1);
+
+function liveRestart() {
+    renderer.resize(Math.round(canvasPx() * Math.max(0.5, tierScale())));
+    sim = new Sim(structuredClone(state), TIERS[tier]);
+    const px = Math.round(canvasPx() * tierScale());
+    const { c0, c1 } = style();
+    renderer.trailsReset(px, c0, c1, state.style.grain, state.seed);
+    acc = 0;
+}
+
+function liveFade(steps: number) {
+    const { c0, c1 } = style();
+    // one fade pass per frame, as strong as `steps` single-step fades
+    renderer.trailsFade(1 - Math.exp((-3 * steps) / state.live.trail), c0, c1, state.style.grain, state.seed, sim.frame);
+}
+
+function liveStep() {
+    const st = state.style;
+    sim.step(pointer, gravity);
+    const ink = hexToRgb(st.ink);
+    renderer.draw(sim.segs, sim.count, {
+        ink: st.hue ? rotateHue(ink, st.hue * sim.frame) : ink,
+        palette: st.palette, spread: st.spread,
+        phase: st.shift + (st.cycle * sim.frame) / Math.max(1, state.steps),
+        blend: st.blend, soft: st.soft,
+        // fewer line-heads on a slow device would look dimmer; compensate
+        alpha: Math.min(1, st.alpha * exposure * Math.sqrt(8000 / TIERS[tier])),
         width: st.width,
     });
 }
 
-function frame(now: number) {
-    const raw = now - lastTime;
-    const dt = Math.min(0.1, raw / 1000);
-    lastTime = now;
-    // Drift redraws the whole drawing every frame. If this device can't do that
-    // smoothly (slow GPU, software GL, a very heavy design), drift holds itself
-    // on the current frame instead of stuttering; "▶ drift" tries again.
-    if (isDrifting()) {
-        // judge by real frame time (it includes the browser presenting the frame),
-        // skipping the first two frames of warm-up
-        driftFrames++;
-        if (driftFrames > 2) frameMs = driftFrames === 3 ? raw : frameMs * 0.7 + raw * 0.3;
-        // under ~20 fps; ?nohold turns this off (used to test drift itself on a busy machine)
-        const slow = driftFrames >= 5 && frameMs > 50 && !params.has("nohold");
-        if (state.shape.n * state.steps > 150_000 || slow) {
-            holdDrift();
-        } else {
-            phase += dt;
-            dirty = true;
-        }
+// Automatic exposure: keep the brightest marks bright (on dark grounds) or
+// the darkest marks dark (on light grounds), whatever the design and device.
+function autoExpose() {
+    const lum = renderer.trailsProbe();
+    const sorted = Array.from(lum).sort((a, b) => a - b);
+    const N = sorted.length;
+    const dark = hexToRgb(state.style.paper).reduce((a, b) => a + b) / 3 < 0.5;
+    let k: number;
+    if (dark) {
+        // percentiles can't tell "slightly" from "far" too bright once pixels clip,
+        // so the share of near-white pixels drives it down first
+        const clipped = sorted.filter(v => v >= 247).length / N;
+        k = clipped > 0.015 ? 0.7 : Math.pow(215 / Math.max(8, sorted[Math.floor(N * 0.97)]), 0.6);
+    } else {
+        const crushed = sorted.filter(v => v <= 12).length / N;
+        k = crushed > 0.015 ? 0.7 : Math.pow((255 - 135) / Math.max(4, 255 - sorted[Math.floor(N * 0.03)]), 0.6);
     }
-    if (dirty) restart();
-    if (!engine.done) {
-        const whole = INSTANT || isDrifting();
-        const until = performance.now() + (whole ? 1e9 : 9);
-        do stepOnce(); while (!engine.done && performance.now() < until);
+    exposure = Math.min(40, Math.max(0.01, exposure * Math.min(1.3, Math.max(0.7, k))));
+}
 
+function liveFrame(now: number) {
+    const dt = Math.min(0.1, (now - lastTime) / 1000);
+    lastTime = now;
+    if (dirty) { liveRestart(); dirty = false; }
+    if (!pointer.down && now - pointer.lastMove > 80) { pointer.vx *= 0.5; pointer.vy *= 0.5; if (pointer.mode === "stir" && Math.abs(pointer.vx) + Math.abs(pointer.vy) < 0.05) pointer.mode = "none"; }
+    if (!paused) {
+        acc += dt * 60 * state.live.speed;
+        // on slow frames, catching up would only make the next frame slower
+        const steps = Math.min(dt > 0.05 ? 1 : 4, Math.floor(acc));
+        acc = steps ? acc - Math.floor(acc) : acc;
+        if (steps) liveFade(steps);
+        for (let i = 0; i < steps; i++) liveStep();
+        liveFrames++;
+        if (liveFrames % (liveFrames < 120 ? 10 : 45) === 0) autoExpose();
+        settleTier(now, dt);
     }
-    if (engine.done && !finished) {
-        finished = true;
-        if (!isDrifting() || now - lastBudgetShown > 500) {
-            showBudget();
-            lastBudgetShown = now;
-        }
-        onFinish?.();
-        onFinish = null;
-    }
+    renderer.trailsPresent(state.style.blend === "add" || state.style.blend === "screen");
+}
+
+function settleTier(now: number, dt: number) {
+    if (tierClock.settled) return;
+    if (!tierClock.start) { tierClock.start = now; return; }
+    if (now - tierClock.start < 300) return; // warm-up
+    tierClock.frames++;
+    tierClock.sum += dt;
+    if (now - tierClock.start < 2300) return;
+    const avg = (tierClock.sum / tierClock.frames) * 1000;
+    if (avg > 24 && tier > 0) { tier--; dirty = true; tierClock = { start: now, frames: 0, sum: 0, settled: false }; }
+    else if (avg < 11 && tier < TIERS.length - 1 && !coarse) { tier++; dirty = true; tierClock = { start: 0, frames: 0, sum: 0, settled: true }; }
+    else tierClock.settled = true;
+    if (tierClock.settled) report({ particles: TIERS[tier], frameMs: avg, renderer: glName() });
+}
+
+function glName() {
+    const gl = renderer.gl, ext = gl.getExtension("WEBGL_debug_renderer_info");
+    return String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+}
+
+// ---------- the loop ----------
+
+function frame(now: number) {
+    if (VIEW === "live") liveFrame(now);
+    else stillFrame();
     fps.tick();
     requestAnimationFrame(frame);
 }
-
-/**
- * Change the state: the drawing restarts and the URL follows. A drifting page
- * keeps a clean URL (reloading gives a new design); an untouched collection
- * design gets its short #n= link; anything else gets the full #s= state.
- */
-function commit(rebuildPanel = false, byUser = true) {
-    dirty = true;
-    if (byUser && state.design && !isDrifting()) variant = "edited";
-    if (isDrifting()) history.replaceState(null, "", location.pathname + location.search);
-    else if (state.design && !variant && !driftHeld) history.replaceState(null, "", `#n=${state.design}`);
-    else history.replaceState(null, "", `#s=${encode(state)}`);
-    if (rebuildPanel) buildPanel();
-    placeHandles();
-    renderNumber();
-}
-
-const driftButton = $<HTMLButtonElement>(".drift");
-const numberEl = $<HTMLDivElement>(".number");
-function renderDriftButton() {
-    driftButton.hidden = !drifting;
-    driftButton.textContent = driftHeld ? "▶ drift" : "❚❚ hold";
-    driftButton.title = driftHeld ? "let the drawing shift by itself again" : "freeze this exact drawing";
-}
-function holdDrift() {
-    state = drifted(state, phase); // keep exactly what is on screen
-    driftHeld = true;
-    renderDriftButton();
-    commit(true, false);
-}
-driftButton.addEventListener("click", () => {
-    if (!driftHeld) return holdDrift();
-    driftHeld = false;
-    phase = 0;
-    frameMs = 0;
-    driftFrames = 0;
-    renderDriftButton();
-    commit(true, false);
-});
-
-function showBudget() {
-    const b = budget.result();
-    const st = current.style;
-    // colour and light pieces are made for screens: say so plainly instead of warning
-    if (!b.pass && (st.palette || st.blend === "add" || st.blend === "screen")) {
-        meter.className = "budget screen";
-        meter.replaceChildren(h("b", {}, "screen piece"), " made of light; ◯ ink designs are made for plotting");
-        meter.title = `As a plot: ${b.minutes.toFixed(0)} min, density ${b.coverage.toFixed(1)} (limits 45 min, 1.5).`;
-        return;
-    }
-    meter.className = `budget ${b.pass ? "ok" : "over"}`;
-    meter.replaceChildren(h("b", {}, b.pass ? "plottable" : "too much ink"), ` ${b.minutes.toFixed(0)} min · ${b.metres.toFixed(0)} m · density ${b.coverage.toFixed(1)}`);
-    meter.title = "Estimate for A4, 0.3 mm pen. Limits: 45 min and density 1.5. tools/plotcheck.py has the final say.";
-}
-
-// ---------- fps meter (?fps) ----------
 
 const fps = {
     el: $<HTMLDivElement>(".fps"),
@@ -201,205 +211,127 @@ const fps = {
         this.frames.push(now);
         while (this.frames.length && this.frames[0] < now - 1000) this.frames.shift();
         this.value = this.frames.length;
-        if (params.has("fps")) this.el.textContent = `${this.value} fps · ${engine.count} segments/step`;
+        if (params.has("fps")) this.el.textContent = VIEW === "live" ? `${this.value} fps · ${TIERS[tier].toLocaleString()} line-heads${tierClock.settled ? "" : " · measuring"}` : `${this.value} fps`;
     },
 };
 if (params.has("fps")) fps.el.hidden = false;
 
-// ---------- panel ----------
+// ---------- state changes ----------
 
-const h = (tag: string, attrs: Record<string, unknown> = {}, ...kids: (Node | string)[]) => {
-    const el = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs)) {
-        if (k.startsWith("on")) el.addEventListener(k.slice(2), v as EventListener);
-        else if (k === "class") el.className = String(v);
-        else el.setAttribute(k, String(v));
-    }
-    el.append(...kids);
-    return el;
-};
-
-function knob(label: string, value: number, min: number, max: number, step: number, set: (v: number) => void, big = false) {
-    const out = h("output", {}, fmt(value));
-    const input = h("input", { type: "range", min, max, step, value, "aria-label": label }) as HTMLInputElement;
-    input.addEventListener("input", () => {
-        set(+input.value);
-        out.textContent = fmt(+input.value);
-        commit();
-    });
-    return h("label", { class: big ? "knob big" : "knob" }, h("span", {}, label), input, out);
-}
-const fmt = (v: number) => (Math.abs(v) >= 100 ? v.toFixed(0) : +v.toFixed(3) + "");
-
-const SIGNALS: SignalKind[] = ["none", "lin", "sin", "fade", "noise"];
-const SIGNAL_LABEL: Record<SignalKind, string> = { none: "steady", lin: "ramp", sin: "wave", fade: "fade", noise: "drift" };
-
-function signalRow(p: Param, axis: "t" | "u") {
-    const s = p[axis] ?? ["none", 0.5, axis === "t" ? 60 : 1];
-    const sel = h("select", { "aria-label": axis === "t" ? "over time" : "along the line" },
-        ...SIGNALS.map(k => h("option", { value: k, ...(k === s[0] ? { selected: "" } : {}) }, SIGNAL_LABEL[k]))) as HTMLSelectElement;
-    const amt = h("input", { type: "number", step: 0.05, value: s[1], title: "amount" }) as HTMLInputElement;
-    const per = h("input", { type: "number", step: axis === "t" ? 1 : 0.05, value: s[2], title: axis === "t" ? "period in steps" : "period along the line (1 = once around)" }) as HTMLInputElement;
-    const update = () => {
-        if (sel.value === "none") delete p[axis];
-        else p[axis] = [sel.value as SignalKind, +amt.value, +per.value];
-        commit();
-    };
-    [sel, amt, per].forEach(el => el.addEventListener("change", update));
-    return h("div", { class: "signal" }, h("span", {}, axis === "t" ? "over time" : "along line"), sel, amt, per);
+/**
+ * Change the state: the drawing restarts and the URL follows. An untouched
+ * collection design gets its short #n= link; anything else the full #s= state.
+ */
+function commit(rebuildPanel = false, byUser = true) {
+    dirty = true;
+    if (byUser && state.design) variant = "edited";
+    if (state.design && !variant) history.replaceState(null, "", `${location.search}#n=${state.design}`);
+    else history.replaceState(null, "", `${location.search}#s=${encode(state)}`);
+    if (rebuildPanel && editing) buildPanel();
+    placeHandles();
+    renderNumber();
+    document.body.style.background = state.style.paper2;
+    document.body.classList.toggle("dark", hexToRgb(state.style.paper).reduce((a, b) => a + b) / 3 < 0.5);
 }
 
-let open = new Set<Block>();
-
-function blockCard(b: Block, idx: number) {
-    const spec = BLOCKS[b.k];
-    const [main, mainLabel, min, max, step] = spec.params[0];
-    const card = h("div", { class: `block${b.on ? "" : " off"}${open.has(b) ? " open" : ""}`, draggable: "true", "data-idx": idx });
-    const move = (d: number) => {
-        const j = idx + d;
-        if (j < 0 || j >= state.blocks.length) return;
-        [state.blocks[idx], state.blocks[j]] = [state.blocks[j], state.blocks[idx]];
-        commit(true);
-    };
-    const head = h("div", { class: "block-head" },
-        h("span", { class: "grip", title: "drag to reorder" }, "⠿"),
-        h("button", { class: "name", title: spec.hint, onclick: () => { open.has(b) ? open.delete(b) : open.add(b); buildPanel(); } }, spec.label,
-            Object.values(b.p).some(p => p.t || p.u) ? h("i", { title: "modulated" }, " ∿") : ""),
-        h("span", { class: "tools" },
-            h("button", { title: "move up", onclick: () => move(-1) }, "↑"),
-            h("button", { title: "move down", onclick: () => move(1) }, "↓"),
-            h("button", { title: b.on ? "mute" : "unmute", onclick: () => { b.on = !b.on; commit(true); } }, b.on ? "●" : "○"),
-            h("button", { title: "remove", onclick: () => { state.blocks.splice(idx, 1); commit(true); } }, "×")));
-    card.append(head, knob(mainLabel, b.p[main].b, min, max, step, v => (b.p[main].b = v), true));
-    if (open.has(b)) {
-        const more = h("div", { class: "more" });
-        spec.params.forEach(([name, label, mn, mx, st], k) => {
-            if (k > 0) more.append(knob(label, b.p[name].b, mn, mx, st, v => (b.p[name].b = v)));
-            more.append(h("div", { class: "signals" }, h("em", {}, label), signalRow(b.p[name], "t"), signalRow(b.p[name], "u")));
-        });
-        card.append(more);
-    }
-    card.addEventListener("dragstart", e => e.dataTransfer!.setData("text/plain", String(idx)));
-    card.addEventListener("dragover", e => { e.preventDefault(); card.classList.add("over"); });
-    card.addEventListener("dragleave", () => card.classList.remove("over"));
-    card.addEventListener("drop", e => {
-        e.preventDefault();
-        const from = +e.dataTransfer!.getData("text/plain");
-        const [moved] = state.blocks.splice(from, 1);
-        state.blocks.splice(idx, 0, moved);
-        commit(true);
-    });
-    return card;
-}
-
-function section(title: string, ...kids: (Node | string)[]) {
-    return h("section", {}, h("h3", {}, title), ...kids);
-}
-
-function buildPanel() {
-    const s = state.shape;
-    const kinds: SeedKind[] = ["circle", "polygon", "line", "lissajous", "drawn"];
-    const seedKids: (Node | string)[] = [
-        h("div", { class: "seg" }, ...kinds.map(k => h("button", {
-            class: s.kind === k ? "on" : "",
-            onclick: () => { if (k === "drawn") startDrawing(); else { s.kind = k; commit(true); } },
-        }, k === "drawn" ? "draw ✎" : k))),
-        knob("points", s.n, 50, 20000, 50, v => (s.n = v)),
-        knob("size", s.r, 20, 600, 1, v => (s.r = v)),
-        knob("turn", s.rot, 0, 359, 1, v => (s.rot = v)),
-    ];
-    if (s.kind === "polygon") seedKids.push(knob("sides", s.sides, 3, 12, 1, v => (s.sides = v)));
-    if (s.kind === "lissajous") seedKids.push(knob("freq a", s.la, 1, 9, 1, v => (s.la = v)), knob("freq b", s.lb, 1, 9, 1, v => (s.lb = v)));
-    seedKids.push(knob("tangle", s.shuffle, 0, 200, 1, v => (s.shuffle = v)));
-
-    const stack = h("div", { class: "stack" }, ...state.blocks.map(blockCard));
-    const add = h("select", { class: "add", "aria-label": "add block" },
-        h("option", { value: "" }, "+ add block"),
-        ...(Object.keys(BLOCKS) as BlockKind[]).map(k => h("option", { value: k }, `${BLOCKS[k].label} — ${BLOCKS[k].hint}`))) as HTMLSelectElement;
-    add.addEventListener("change", () => {
-        if (!add.value) return;
-        const b = newBlock(add.value as BlockKind);
-        open.add(b);
-        state.blocks.push(b);
-        commit(true);
-    });
-
-    const m = state.mark, st = state.style;
-    panel.replaceChildren(
-        section("seed", ...seedKids),
-        section("stack", h("p", { class: "hint" }, "Runs top to bottom, once per step. Drag or ↑↓ to reorder; mute with ●."), stack, add),
-        section("time",
-            knob("steps", state.steps, 1, 600, 1, v => (state.steps = v)),
-            knob("seed", state.seed, 1, 99999, 1, v => (state.seed = v))),
-        section("mark",
-            knob("gaps", m.skip, 0, 0.95, 0.01, v => (m.skip = v)),
-            h("label", { class: "check" }, Object.assign(h("input", { type: "checkbox", onchange: (e: Event) => { m.detach = (e.target as HTMLInputElement).checked; commit(true); } }), { checked: m.detach }), "separate strokes"),
-            ...(m.detach ? [knob("stroke length %", m.seglen, 10, 500, 5, v => (m.seglen = v)), knob("stroke turn", m.segrot, 0, 179, 1, v => (m.segrot = v))] : [])),
-        section("colour",
-            h("div", { class: "swatches" },
-                h("button", { class: `swatch mono${st.palette ? "" : " on"}`, title: "one ink colour", style: `background:${st.ink}`, onclick: () => { st.palette = null; commit(true); } }),
-                ...Object.entries(PALETTES).map(([name, p]) => h("button", {
-                    class: `swatch${samePalette(st.palette, p) ? " on" : ""}`, title: name, style: `background:${gradient(p)}`,
-                    onclick: () => { st.palette = [...p] as Palette; commit(true); },
-                }))),
-            ...(st.palette
-                ? [knob("along line", st.spread, -6, 6, 0.05, v => (st.spread = v)), knob("over time", st.cycle, -6, 6, 0.05, v => (st.cycle = v)), knob("offset", st.shift, 0, 1, 0.01, v => (st.shift = v))]
-                : [h("div", { class: "row" }, colour("ink", st.ink, v => (st.ink = v))), knob("hue drift", st.hue, -5, 5, 0.05, v => (st.hue = v))]),
-            h("div", { class: "seg" }, ...(["over", "add", "screen", "multiply"] as Blend[]).map(b => h("button", {
-                class: st.blend === b ? "on" : "", title: BLEND_HINT[b], onclick: () => { st.blend = b; commit(true); },
-            }, b === "over" ? "paint" : b === "add" ? "light" : b))),
-            knob("glow", st.soft, 0, 1, 0.01, v => (st.soft = v)),
-            knob("weight", st.width, 0.2, 8, 0.1, v => (st.width = v)),
-            knob("opacity", st.alpha, 0.005, 1, 0.005, v => (st.alpha = v))),
-        section("ground",
-            h("div", { class: "row" },
-                colour("centre", st.paper, v => (st.paper = v)),
-                colour("edge", st.paper2, v => (st.paper2 = v)),
-                h("button", { class: "swap", title: "swap ground and ink", onclick: () => { [st.paper, st.ink] = [st.ink, st.paper]; st.paper2 = st.paper; commit(true); } }, "⇄")),
-            knob("grain", st.grain, 0, 1, 0.01, v => (st.grain = v))),
-    );
-}
-
-const BLEND_HINT: Record<Blend, string> = {
-    over: "paint: lines cover what is under them",
-    add: "light: overlapping lines add up and glow (best on dark grounds)",
-    screen: "screen: like light, but softer highlights",
-    multiply: "multiply: like inks on paper (best on light grounds)",
-};
-const samePalette = (a: Palette | null, b: Palette) => !!a && a.every((v, i) => Math.abs(v - b[i]) < 0.2);
-function gradient(p: Palette) {
-    const stops = [0, 0.25, 0.5, 0.75, 1].map(x => `rgb(${paletteRgb(p, x).map(c => Math.round(c * 255)).join(",")})`);
-    return `linear-gradient(90deg,${stops.join(",")})`;
-}
-
-function colour(label: string, value: string, set: (v: string) => void) {
-    const input = h("input", { type: "color", value }) as HTMLInputElement;
-    input.addEventListener("input", () => { set(input.value); commit(); });
-    return h("label", { class: "colour" }, input, label);
-}
-
-// ---------- the collection ----------
-
-let variant: "" | "edited" = "";
-
-/** Show a design from the collection: a random number of the given mode, or a given number. */
 function showDesign(n: number) {
     state = designFor(n);
-    open = new Set();
+    resetOpen();
     variant = "";
-    if (drifting || fresh) { drifting = true; driftHeld = reducedMotion; phase = 0; frameMs = 0; driftFrames = 0; }
-    renderDriftButton();
     commit(true, false);
 }
+const newDesign = () => showDesign(1 + Math.floor(Math.random() * DESIGNS));
 
 function renderNumber() {
     const n = state.design;
-    const tag = !n ? "" : variant === "edited" ? " · edited" : isDrifting() ? " · drifting" : driftHeld && drifting ? " · held" : "";
-    numberEl.textContent = n ? `No. ${n.toLocaleString("en-US")}${tag}` : "your own design";
-    numberEl.title = n ? `${modeOf(n) === "ink" ? "an ink piece (plottable)" : "a colour piece"} from a collection of ${DESIGNS.toLocaleString("en-US")}` : "";
+    numberEl.textContent = n ? `No. ${n.toLocaleString("en-US")}${variant ? " · edited" : ""}` : "your own design";
+    numberEl.title = n ? `${modeOf(n) === "ink" ? "an ink piece, made for plotting" : "a colour piece"} from a collection of ${DESIGNS.toLocaleString("en-US")}` : "";
 }
 
-// ---------- direct handles on the canvas ----------
+function showBudget(b: ReturnType<Budget["result"]>) {
+    const st = state.style;
+    if (!b.pass && (st.palette || st.blend === "add" || st.blend === "screen")) {
+        meter.className = "budget screen";
+        meter.replaceChildren(h("b", {}, "screen piece"), " made of light");
+        meter.title = `As a plot: ${b.minutes.toFixed(0)} min, density ${b.coverage.toFixed(1)} (limits 45 min, 1.5).`;
+        return;
+    }
+    meter.className = `budget ${b.pass ? "ok" : "over"}`;
+    meter.replaceChildren(h("b", {}, b.pass ? "plottable" : "too much ink"), ` ${b.minutes.toFixed(0)} min · ${b.metres.toFixed(0)} m · density ${b.coverage.toFixed(1)}`);
+    meter.title = "Estimate for A4, 0.3 mm pen. Limits: 45 min and density 1.5. tools/plotcheck.py has the final say.";
+}
+
+// ---------- the viewer as a force ----------
+// Tap: a new design. Drag: stir. Hold still: pull. Right-drag, shift or two
+// fingers: push. Hovering with a mouse stirs gently. Tilting a phone tips the flow.
+
+const toWorld = (e: PointerEvent): [number, number] => {
+    const r = canvas.getBoundingClientRect();
+    return [((e.clientX - r.left) / r.width) * WORLD, ((e.clientY - r.top) / r.height) * WORLD];
+};
+let press = { t: 0, x: 0, y: 0, moved: 0, id: -1, touches: 0 };
+let holdTimer = 0;
+
+function movePointer(e: PointerEvent) {
+    const [x, y] = toWorld(e);
+    const now = performance.now();
+    const dtSteps = Math.max(1, ((now - pointer.lastMove) / 1000) * 60);
+    if (pointer.lastMove) { pointer.vx = (x - pointer.x) / dtSteps; pointer.vy = (y - pointer.y) / dtSteps; }
+    pointer.x = x; pointer.y = y; pointer.lastMove = now;
+}
+
+canvas.addEventListener("pointerdown", e => {
+    if (VIEW !== "live" || stage.classList.contains("drawing")) return;
+    canvas.setPointerCapture(e.pointerId);
+    press = { t: performance.now(), x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId, touches: press.touches + 1 };
+    pointer.down = true;
+    pointer.lastMove = 0;
+    movePointer(e);
+    pointer.mode = e.button === 2 || e.shiftKey || press.touches > 1 ? "push" : "stir";
+    clearTimeout(holdTimer);
+    holdTimer = window.setTimeout(() => { if (pointer.down && press.moved < 10 && pointer.mode !== "push") pointer.mode = "attract"; }, 280);
+    askForTilt();
+});
+canvas.addEventListener("pointermove", e => {
+    if (VIEW !== "live") return;
+    if (pointer.down) press.moved = Math.max(press.moved, Math.hypot(e.clientX - press.x, e.clientY - press.y));
+    movePointer(e);
+    if (!pointer.down && e.pointerType === "mouse") pointer.mode = "stir";
+    if (pointer.down && pointer.mode === "attract" && press.moved > 10) pointer.mode = "stir";
+});
+const release = (e: PointerEvent) => {
+    if (VIEW !== "live") return;
+    press.touches = Math.max(0, press.touches - 1);
+    clearTimeout(holdTimer);
+    const tap = performance.now() - press.t < 250 && press.moved < 8 && e.pointerId === press.id;
+    pointer.down = false;
+    pointer.mode = "none";
+    if (tap && !editing) newDesign();
+};
+canvas.addEventListener("pointerup", release);
+canvas.addEventListener("pointercancel", release);
+canvas.addEventListener("pointerleave", () => { if (!pointer.down) pointer.mode = "none"; });
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+let tiltAsked = false;
+function askForTilt() {
+    if (tiltAsked || !coarse) return;
+    tiltAsked = true;
+    const listen = () => addEventListener("deviceorientation", e => {
+        if (e.gamma == null || e.beta == null) return;
+        gravity = [Math.max(-1, Math.min(1, e.gamma / 45)) * 0.25, Math.max(-1, Math.min(1, (e.beta - 40) / 45)) * 0.25];
+    });
+    const D = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof D.requestPermission === "function") D.requestPermission().then(r => r === "granted" && listen()).catch(() => {});
+    else listen();
+}
+
+addEventListener("keydown", e => {
+    if ((e.target as HTMLElement).closest("input, select, textarea, button")) return;
+    if (e.code === "Space") { e.preventDefault(); newDesign(); }
+});
+
+// ---------- direct handles (while editing) ----------
 
 type Handle = { label: string; get: () => [number, number]; set: (x: number, y: number) => void; main?: boolean };
 
@@ -419,6 +351,7 @@ function handleList(): Handle[] {
 }
 
 function placeHandles() {
+    if (!editing) { handles.replaceChildren(); return; }
     const rect = canvas.getBoundingClientRect(), base = stage.getBoundingClientRect();
     const k = rect.width / WORLD;
     handles.replaceChildren(...handleList().map(hd => {
@@ -441,78 +374,103 @@ function placeHandles() {
     }));
 }
 
-// ---------- draw your own seed ----------
-
 function startDrawing() {
     stage.classList.add("drawing");
     const path: number[] = [];
-    const toWorld = (e: PointerEvent) => {
-        const r = canvas.getBoundingClientRect();
-        return [((e.clientX - r.left) / r.width) * WORLD, ((e.clientY - r.top) / r.height) * WORLD];
-    };
     const down = (e: PointerEvent) => { canvas.setPointerCapture(e.pointerId); path.push(...toWorld(e)); canvas.addEventListener("pointermove", move); };
     const move = (e: PointerEvent) => path.push(...toWorld(e).map(Math.round));
     const up = () => {
         canvas.removeEventListener("pointerdown", down);
         canvas.removeEventListener("pointermove", move);
         stage.classList.remove("drawing");
-        if (path.length >= 8) {
-            state.shape.kind = "drawn";
-            state.shape.path = path;
-        }
+        if (path.length >= 8) { state.shape.kind = "drawn"; state.shape.path = path; }
         commit(true);
     };
     canvas.addEventListener("pointerdown", down);
     canvas.addEventListener("pointerup", up, { once: true });
 }
 
+initPanel({ get state() { return state; }, root: $<HTMLElement>(".panel-body"), commit, startDrawing });
+
+function setEditing(on: boolean) {
+    editing = on;
+    panelEl.hidden = !on;
+    document.body.classList.toggle("editing", on);
+    $<HTMLButtonElement>("#edit").setAttribute("aria-pressed", String(on));
+    if (on) buildPanel();
+    placeHandles();
+}
+
 // ---------- actions ----------
 
+function flash(sel: string, text: string) {
+    const b = $<HTMLButtonElement>(sel), old = b.textContent;
+    b.textContent = text;
+    setTimeout(() => (b.textContent = old), 1600);
+}
+
+$("#new").addEventListener("click", newDesign);
+$("#edit").addEventListener("click", () => setEditing(!editing));
+$("#close").addEventListener("click", () => setEditing(false));
+$("#pause").addEventListener("click", () => {
+    paused = !paused;
+    $("#pause").textContent = paused ? "▶" : "❚❚";
+    $("#pause").title = paused ? "play" : "pause";
+});
 $("#share").addEventListener("click", async () => {
-    const short = state.design && !variant && !isDrifting() && !driftHeld;
-    const url = short ? `${location.origin}${location.pathname}#n=${state.design}` : shareUrl(shown());
+    const url = state.design && !variant ? `${location.origin}${location.pathname}#n=${state.design}` : shareUrl(state);
     await navigator.clipboard?.writeText(url).catch(() => {});
-    flash("#share", "link copied");
+    flash("#share", "copied");
 });
 $("#png").addEventListener("click", () => canvas.toBlob(b => b && download(`wake-${stamp()}.png`, b)));
-$("#svg").addEventListener("click", () => download(`wake-${stamp()}.svg`, new Blob([toSVG(shown(), shareUrl(shown()))], { type: "image/svg+xml" })));
+$("#plot").addEventListener("click", () => {
+    // freeze & plot: hold time still and trace the current line-heads through one lifetime
+    let lines: number[][];
+    if (VIEW === "live") {
+        if (!paused) $("#pause").click();
+        lines = sim.trace();
+    } else lines = [];
+    const svg = VIEW === "live" ? svgFromLines(lines, state.style.width, shareUrl(state)) : toSVG(state, shareUrl(state));
+    download(`wake-${stamp()}.svg`, new Blob([svg], { type: "image/svg+xml" }));
+    const b = VIEW === "live" ? budgetLines(lines) : budget.result();
+    toast(b.pass
+        ? `SVG saved · about ${Math.max(1, Math.round(b.minutes))} min to plot on A4 · density ${b.coverage.toFixed(1)} ✓`
+        : `SVG saved · too dense for a pen (density ${b.coverage.toFixed(1)}, limit 1.5) · try a shorter trail or fewer line-heads`);
+});
 $("#video").addEventListener("click", () => {
     const rec = new MediaRecorder(canvas.captureStream(60), { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm" });
     const chunks: Blob[] = [];
     rec.ondataavailable = e => chunks.push(e.data);
     rec.onstop = () => download(`wake-${stamp()}.webm`, new Blob(chunks, { type: "video/webm" }));
     rec.start();
-    flash("#video", "recording…");
-    if (isDrifting()) setTimeout(() => rec.stop(), 8000); // a drifting drawing is recorded for 8 s
-    else {
-        dirty = true;
-        onFinish = () => setTimeout(() => rec.stop(), 600);
-    }
+    flash("#video", "● 8 s");
+    setTimeout(() => rec.stop(), 8000);
 });
 
-function flash(sel: string, text: string) {
-    const b = $<HTMLButtonElement>(sel), old = b.textContent;
-    b.textContent = text;
-    setTimeout(() => (b.textContent = old), 1400);
+let toastTimer = 0;
+function toast(text: string) {
+    const t = $<HTMLDivElement>(".toast");
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => (t.hidden = true), 5000);
 }
 
 // ---------- boot ----------
 
-window.addEventListener("hashchange", () => {
+addEventListener("hashchange", () => {
     if (!/(s=[\w-]+|n=\d+)/.test(location.hash)) return;
-    state = stateFromLocation();
+    const next = stateFromLocation();
+    if (encode(next) === encode(state)) return; // our own replaceState echoing back
+    state = next;
     variant = "";
-    drifting = false; // an opened link shows exactly what was shared
-    renderDriftButton();
-    commit(true);
+    commit(true, false);
 });
 new ResizeObserver(() => { dirty = true; placeHandles(); }).observe(stage);
-$("#new-colour").addEventListener("click", () => showDesign(randomDesign("colour")));
-$("#new-ink").addEventListener("click", () => showDesign(randomDesign("ink")));
-if (fresh && !INSTANT) showDesign(1 + Math.floor(Math.random() * DESIGNS)); // every visit starts from a new design
-renderDriftButton();
-buildPanel();
-commit(false, false);
+if (fresh && !INSTANT) newDesign(); // every visit starts from a new design
+else commit(false, false);
+setEditing(params.has("edit"));
+if (paused) { $("#pause").textContent = "▶"; $("#pause").title = "play"; }
 requestAnimationFrame(frame);
 
 // hooks for tests and the console
@@ -520,27 +478,30 @@ declare global { interface Window { wake: unknown } }
 window.wake = {
     get state() { return state; },
     set(s: State) { state = sanitize(s); commit(true); },
-    // resolves once fonts have loaded, layout has settled and the drawing is complete
+    newDesign,
+    // still view: resolves once fonts have loaded, layout has settled and the drawing is complete
     async whenDone() {
         await document.fonts.ready;
+        if (VIEW === "live") { await new Promise(r => setTimeout(r, 300)); return; }
         for (;;) {
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
             if (finished && !dirty) return;
             await new Promise<void>(res => (onFinish = res));
         }
     },
-    svg: () => toSVG(shown()),
-    // draw a state up to step k right now and return a PNG of size px (for GIFs and docs)
+    svg: () => toSVG(state),
+    // still view: draw a state up to step k right now and return a PNG (for GIFs and docs)
     snapshot(s: State, k: number, px = 360) {
         state = sanitize(s);
-        restart();
-        while (!engine.done && engine.n <= k) stepOnce();
-        dirty = true; // the live loop redraws the full drawing afterwards
+        stillRestart();
+        while (!engine.done && engine.n <= k) stillStep();
+        dirty = true;
         const c = document.createElement("canvas");
         c.width = c.height = px;
         c.getContext("2d")!.drawImage(canvas, 0, 0, px, px);
         return c.toDataURL("image/png");
     },
-    budget: () => budget.result(),
+    budget: () => (VIEW === "live" ? budgetLines(sim.trace()) : budget.result()),
     fps: () => fps.value,
+    live: () => (VIEW === "live" ? { frame: sim.frame, particles: TIERS[tier], settled: tierClock.settled, exposure, paused } : null),
 };

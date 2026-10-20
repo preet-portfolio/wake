@@ -1,6 +1,6 @@
 // The whole state lives in the URL hash as base64url JSON, so a link is a drawing.
 import { designFor } from "./design";
-import { BLOCKS, DESIGNS, WORLD, defaultState, newBlock, type Blend, type Block, type Mark, type Palette, type Param, type Seed, type SeedKind, type Signal, type SignalKind, type State, type Style } from "./model";
+import { BLOCKS, DESIGNS, WORLD, defaultState, newBlock, type Blend, type Block, type Live, type Mark, type Palette, type Param, type Seed, type SeedKind, type Signal, type SignalKind, type State, type Style } from "./model";
 
 export function encode(s: State): string {
     const bytes = new TextEncoder().encode(JSON.stringify(s));
@@ -64,8 +64,14 @@ export function sanitize(raw: Partial<State>): State {
         ? rs.path.slice(0, MAX_PATH).map(v => num(v, -WORLD, 2 * WORLD, 0))
         : undefined;
 
+    const rl = (r.live ?? {}) as Partial<Live>;
     return {
         v: 1,
+        live: {
+            mode: rl.mode === "rings" ? "rings" : "trails",
+            trail: Math.round(num(rl.trail, 4, 600, d.live.trail)),
+            speed: num(rl.speed, 0.1, 4, d.live.speed),
+        },
         seed: Math.round(num(r.seed, 0, 1e9, d.seed)),
         steps: Math.round(num(r.steps, 1, 600, d.steps)),
         shape: {

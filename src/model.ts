@@ -13,7 +13,7 @@ export interface Param {
     u?: Signal;
 }
 
-export type BlockKind = "rotate" | "scale" | "move" | "wave" | "jitter" | "swirl" | "attract" | "delay";
+export type BlockKind = "rotate" | "scale" | "move" | "wave" | "jitter" | "swirl" | "attract" | "flow" | "delay";
 
 export interface Block {
     k: BlockKind;
@@ -81,8 +81,16 @@ export const PALETTES: Record<string, Palette> = {
     dusk:     [0.5, 0.4, 0.6, 0.5, 0.3, 0.4, 1.0, 1.0, 1.0, 0.95, 0.75, 0.55],
 };
 
+/** How the live simulation moves and leaves its trace. */
+export interface Live {
+    mode: "trails" | "rings"; // trails: each line-head draws its own path; rings: neighbours are joined, like the still drawing
+    trail: number;            // how many frames a mark takes to fade away
+    speed: number;            // simulation steps per frame at 60 fps
+}
+
 export interface State {
     v: 1;
+    live: Live;
     /** the collection number this state was generated from, if any */
     design?: number;
     seed: number;
@@ -130,6 +138,10 @@ export const BLOCKS: Record<BlockKind, { label: string; hint: string; params: Pa
         label: "attract", hint: "pull toward a point",
         params: [["k", "% / step", -5, 5, 0.01, 0.8], ["x", "x", 0, WORLD, 1, 500], ["y", "y", 0, WORLD, 1, 500]],
     },
+    flow: {
+        label: "flow", hint: "drift through a swirling curl-noise field",
+        params: [["k", "strength", 0, 10, 0.05, 2], ["s", "scale", 0.2, 8, 0.05, 2], ["v", "evolve", 0, 3, 0.01, 0.3]],
+    },
     delay: {
         label: "delay", hint: "each point starts later than the one before it",
         params: [["span", "steps", -400, 400, 1, 60], ["shift", "start at", 0, 1, 0.01, 0]],
@@ -165,6 +177,7 @@ export function defaultState(): State {
     delay.p.span.b = 60;
     return {
         v: 1,
+        live: { mode: "trails", trail: 90, speed: 1 },
         seed: 4,
         steps: 54,
         shape: { kind: "circle", n: 600, r: 400, cx: 500, cy: 500, rot: 0, sides: 5, la: 3, lb: 2, shuffle: 0 },

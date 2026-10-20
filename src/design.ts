@@ -41,10 +41,19 @@ function stack(r: Rng, mode: Mode): State {
         blocks.push(delay);
     }
     const scale = newBlock("scale");
-    scale.p.s.b = between(-3, -0.6);
+    scale.p.s.b = mode === "ink" ? between(-2.2, -0.6) : between(-3, -0.6);
     scale.p.sy.b = r() < 0.25 ? between(0.3, 1.6) : 1;
     scale.p.ox.b = between(350, 650); scale.p.oy.b = between(350, 650);
     blocks.push(scale);
+    // curl-noise flow in about half the colour designs: it is what makes the live
+    // view feel alive. Ink pieces get it rarely and gently: it tangles lines, and
+    // tangled lines over-ink paper.
+    if (r() < (mode === "ink" ? 0.2 : 0.5)) {
+        const f = newBlock("flow");
+        f.p.k.b = mode === "ink" ? between(0.3, 1.0) : between(0.6, 3.5);
+        f.p.s.b = between(0.8, 4); f.p.v.b = between(0.1, 1.2);
+        blocks.push(f);
+    }
     const extras: BlockKind[] = ["rotate", "rotate", "wave", "swirl", "attract", "jitter", "move"];
     for (const k of extras) {
         if (r() > 0.4) continue;
@@ -79,7 +88,12 @@ function stack(r: Rng, mode: Mode): State {
         // 150k segments so the whole drawing can redraw every frame while drifting)
         n: mode === "ink" ? 600 : Math.round(between(900, 2200)),
     };
-    s.steps = Math.round(mode === "ink" ? between(40, 110) : Math.min(between(70, 170), 145_000 / s.shape.n));
+    s.steps = Math.round(mode === "ink" ? between(36, 80) : Math.min(between(70, 170), 145_000 / s.shape.n));
+    s.live = {
+        mode: r() < 0.3 ? "rings" : "trails",
+        trail: Math.round(between(40, 220)),
+        speed: +between(0.6, 1.5).toFixed(2),
+    };
     if (mode === "colour" && r() < 0.2) {
         s.mark = { skip: between(0, 0.4), detach: true, seglen: between(120, 450), segrot: Math.round(between(0, 90)) };
     } else if (mode === "colour" && r() < 0.15) {
@@ -143,7 +157,7 @@ function measure(s: State) {
 export function designFor(n: number): State {
     const mode = modeOf(n);
     let best: State | null = null, bestScore = -Infinity;
-    for (let attempt = 0; attempt < 24; attempt++) {
+    for (let attempt = 0; attempt < (mode === "ink" ? 40 : 24); attempt++) {
         const r = makeRng(n * 7919 + attempt * 104729);
         const s = stack(r, mode);
         if (mode === "colour") colourStyle(r, s);

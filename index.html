@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>wake</title>
-<meta name="description" content="wake — an instrument for drawing the trace a line leaves as it moves through time.">
+<meta name="description" content="wake: a living drawing. Line-heads move through fields of force and leave their trace. Tap for a new one.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M6 22a11 11 0 1 1 20-6' fill='none' stroke='%23d4462a' stroke-width='3' stroke-linecap='round'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,30 +12,42 @@
 <body>
 <main class="app">
   <div class="stage">
-    <canvas id="art" aria-label="the drawing"></canvas>
+    <canvas id="art" aria-label="a living drawing: tap for a new one, drag to stir it"></canvas>
     <div class="handles"></div>
     <div class="fps" hidden></div>
     <div class="draw-hint">draw one stroke on the canvas</div>
-    <div class="stage-bar">
-      <div class="number"></div>
-      <span class="spacer"></span>
-      <button id="new-colour" title="a random colour design from the collection">✦ colour</button>
-      <button id="new-ink" title="a random ink design, made for pen plotters">◯ ink</button>
-      <button class="drift" hidden></button>
-    </div>
   </div>
-  <aside class="panel">
+
+  <header class="mark">
+    <h1>wake</h1>
+    <div class="number"></div>
+  </header>
+
+  <div class="dock">
+    <button id="new" class="new" title="a new design (or tap the canvas, or press space)">✦ new</button>
+    <p class="hint">tap for another · drag to stir · hold to pull</p>
+  </div>
+
+  <nav class="tools" aria-label="tools">
+    <button id="pause" title="pause">❚❚</button>
+    <button id="plot" title="freeze & plot: download what's on screen as an SVG for a pen plotter">plot</button>
+    <button id="share" title="copy a link to this design">share</button>
+    <button id="png" title="save a picture">png</button>
+    <button id="video" title="record 8 seconds">video</button>
+    <button id="edit" title="open the controls" aria-pressed="false">edit</button>
+    <a href="case.html" title="how it was made">about</a>
+  </nav>
+
+  <div class="toast" role="status" hidden></div>
+
+  <aside class="panel" hidden>
     <header>
-      <h1>wake</h1>
-      <p>the trace a line leaves as it moves through time</p>
-      <nav><a href="case.html">how it was made →</a></nav>
+      <h2>controls</h2>
+      <button id="close" title="close the controls">×</button>
     </header>
     <div class="panel-body"></div>
     <footer>
       <div class="budget"></div>
-      <div class="actions">
-        <button id="share">share</button><button id="png">png</button><button id="svg">svg</button><button id="video">video</button>
-      </div>
       <p class="credit">Inspired by <a href="https://github.com/doersino/uji">uji</a> by Noah Doersing · <a href="credits.html">credits &amp; sources</a></p>
     </footer>
   </aside>
