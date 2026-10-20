@@ -91,6 +91,7 @@ button:hover { border-color: var(--ink); }
 .budget { padding: 4px 8px; margin-bottom: 8px; border-left: 3px solid var(--rule); }
 .budget.ok { border-color: #3f7d4e; }
 .budget.over { border-color: var(--red); }
+.budget.screen { border-image: linear-gradient(#ffd6a5, #caffbf, #9bf6ff, #ffc6ff) 1; }
 .actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .actions button { flex: 1; }
 .credit { color: var(--mute); margin: 8px 0 0; font-size: 11px; }

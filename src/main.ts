@@ -107,7 +107,8 @@ function frame(now: number) {
         // skipping the first two frames of warm-up
         driftFrames++;
         if (driftFrames > 2) frameMs = driftFrames === 3 ? raw : frameMs * 0.7 + raw * 0.3;
-        const slow = driftFrames >= 5 && frameMs > 50; // under ~20 fps
+        // under ~20 fps; ?nohold turns this off (used to test drift itself on a busy machine)
+        const slow = driftFrames >= 5 && frameMs > 50 && !params.has("nohold");
         if (state.shape.n * state.steps > 150_000 || slow) {
             holdDrift();
         } else {
@@ -176,6 +177,14 @@ driftButton.addEventListener("click", () => {
 
 function showBudget() {
     const b = budget.result();
+    const st = current.style;
+    // colour and light pieces are made for screens: say so plainly instead of warning
+    if (!b.pass && (st.palette || st.blend === "add" || st.blend === "screen")) {
+        meter.className = "budget screen";
+        meter.replaceChildren(h("b", {}, "screen piece"), " made of light; ◯ ink designs are made for plotting");
+        meter.title = `As a plot: ${b.minutes.toFixed(0)} min, density ${b.coverage.toFixed(1)} (limits 45 min, 1.5).`;
+        return;
+    }
     meter.className = `budget ${b.pass ? "ok" : "over"}`;
     meter.replaceChildren(h("b", {}, b.pass ? "plottable" : "too much ink"), ` ${b.minutes.toFixed(0)} min · ${b.metres.toFixed(0)} m · density ${b.coverage.toFixed(1)}`);
     meter.title = "Estimate for A4, 0.3 mm pen. Limits: 45 min and density 1.5. tools/plotcheck.py has the final say.";

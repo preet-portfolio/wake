@@ -6,7 +6,7 @@ test.use({ launchOptions: { args: [] } });
 const pixels = (page: Page) => page.evaluate(() => (document.querySelector("#art") as HTMLCanvasElement).toDataURL());
 
 test("the drawing shifts by itself, and hold freezes it into a link", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/?nohold"); // auto-hold has its own test; here only drift is checked
     await page.waitForFunction(() => (window as any).wake);
     await page.waitForTimeout(1500);
     const p1 = await pixels(page);
