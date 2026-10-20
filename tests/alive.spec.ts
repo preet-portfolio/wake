@@ -4,6 +4,10 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import { changed, shot } from "./motion";
+import { speciesOf } from "../src/design";
+
+// a flow design: the old "always moving" species (No. 808 became a science piece)
+const FLOW = (() => { for (let n = 1; ; n++) if (speciesOf(n) === "flow") return n; })();
 
 const THRESHOLD = 0.005; // 0.5 % of the canvas per second
 const results: Record<string, unknown> = {};
@@ -13,7 +17,7 @@ for (const [gpu, args] of [["gpu", []], ["software", ["--use-gl=angle", "--use-a
         test.setTimeout(300_000); // screenshots are slow on software rendering
         const browser = await playwright.chromium.launch({ args: [...args] });
         const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-        await page.goto("/#n=808");
+        await page.goto(`/#n=${FLOW}`);
         await page.waitForFunction(() => (window as any).wake);
         let prev = await shot(page);
         const perSecond: number[] = [];
@@ -32,5 +36,5 @@ for (const [gpu, args] of [["gpu", []], ["software", ["--use-gl=angle", "--use-a
 
 test.afterAll(() => {
     fs.mkdirSync("reports", { recursive: true });
-    fs.writeFileSync("reports/alive.json", JSON.stringify({ threshold: THRESHOLD, design: 808, results }, null, 1));
+    fs.writeFileSync("reports/alive.json", JSON.stringify({ threshold: THRESHOLD, design: FLOW, results }, null, 1));
 });

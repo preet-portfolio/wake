@@ -100,7 +100,21 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 <figure class="wide"><img src="case/census-after.jpg" alt="The same 300 numbers after: grids, waves, rings, flocks, branches, stars" loading="lazy"><figcaption>After: the same 300 numbers. The grey circles at the top are the ink pieces, one number in five, and still the plotter's species.</figcaption></figure>
 <p>The numbers moved where it matters. Designs streaming inward fell from 61 % to 28 %, and almost all of those that remain are ink pieces, which are meant to contract. Average inward motion fell from 0.38 to 0.05, essentially none. One number didn't move: CLIP, an image model, still finds about the same count of visual groups, because it judges single frames by colour and ground, and it can't see motion. So the final judge is a card sort with people watching clips.</p>
 
-<h2><span class="n">09</span>Proof</h2>
+<h2><span class="n">09</span>Beautiful because it's true</h2>
+<p>The last family is real science, with the actual equations, not effects that look scientific. <b>The Lorenz attractor</b>: 1,500 copies of a weather-like system start a billionth apart and end up all over the butterfly. Drag ρ below 13.93 and the chaos disappears. <b>The double pendulum</b>: a fan of twins released a hair apart, which stay together just long enough to fool you. <b>The figure eight</b>: three equal masses chasing each other forever along one orbit, found by Moore in 1993 and proved by Chenciner and Montgomery in 2000. <b>Fireflies</b>: Kuramoto's oscillators flash at random until you raise the coupling past K꜀, and then they flash as one. <b>The Chladni plate</b>: sand thrown off the moving parts of a vibrating plate, gathering on the lines that stand still. <b>Turing patterns</b>: Gray–Scott reaction–diffusion on the GPU, growing spots or a labyrinth from a few drops.</p>
+<p>Each opens with an ⓘ card: one sentence, the equation, the primary source, and one control that shows the idea. Every solver is checked against published numbers:</p>
+<table>
+<tr><th>check</th><th>published</th><th>wake</th></tr>
+<tr><td>Lorenz largest Lyapunov exponent</td><td>≈ 0.9056</td><td>0.90</td></tr>
+<tr><td>double pendulum energy drift, 10,000 steps (RK4)</td><td>&lt; 0.1 %</td><td>0.0008 %</td></tr>
+<tr><td>figure eight: energy drift (Verlet) and closing after T = 6.32591398</td><td>&lt; 0.1 %, closes</td><td>0.00002 %, closes to 10⁻⁶</td></tr>
+<tr><td>Kuramoto r above K꜀ = 2γ, at K = 1.5 / 2 / 3</td><td>0.577 / 0.707 / 0.816</td><td>0.576 / 0.707 / 0.817</td></tr>
+<tr><td>Gray–Scott: spots, labyrinth, extinction at their (F, k)</td><td>Pearson 1993</td><td>45 blobs / one connected labyrinth / none</td></tr>
+<tr><td>GPU Gray–Scott against the CPU reference</td><td>identical</td><td>correlation 1.0000</td></tr>
+</table>
+<p>The tests caught two of my own mistakes. I had claimed that below ρ ≈ 24.74 Lorenz twins stay together. Between about 13.93 and 24.74 there is <i>transient chaos</i>, and the test, run at ρ = 20, failed correctly. My parameters for a "worms" pattern were wrong too: it died out, so I removed it instead of guessing. A checklist for a physicist or mathematician to review every card is part of the project; until someone signs it, the cards say only what the tests can back.</p>
+
+<h2><span class="n">10</span>Proof</h2>
 <table>
 <tr><th>claim</th><th>evidence</th><th></th></tr>
 <tr><td>It's mine, not a copy</td><td>jscpd token comparison of wake (compiled to plain JS) against uji's original source: <b>0 shared clones</b>. A planted control was caught, which also exposed that jscpd silently skips files over 1,000 lines by default.</td><td class="ok">pass</td></tr>
@@ -110,6 +124,9 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 <tr><td>It's alive and never freezes</td><td>For 60 seconds the share of pixels changing every second never fell below 33 % on a GPU or 35 % on software rendering, against a 0.5 % floor. Visible motion within 1 s. Playwright videos of the first 10 s on desktop and phone.</td><td class="ok">pass</td></tr>
 <tr><td>A new design is one obvious action away</td><td>✦ new is at least 150 × 56 px and on screen on desktop and phone; a tap and the space bar also work. Controls stay hidden until asked for.</td><td class="ok">pass</td></tr>
 <tr><td>More than one personality</td><td>Same 300 numbers: inward-streaming designs 61 % → 28 %, mean inward motion 0.38 → 0.05, k-means families 2 → 3, CLIP diversity 0.190 → 0.213. 100 presses of ✦ new: no species twice in a row, all nine appear.</td><td class="ok">pass</td></tr>
+<tr><td>The science is right</td><td>7 solver tests against published values (above), GPU = CPU, every card has an equation, a control and a dated source; fireflies sync above K꜀ and stop below it.</td><td class="ok">pass</td></tr>
+<tr><td>An expert agrees</td><td>Review checklist for a physicist or mathematician.</td><td class="wait">awaiting review</td></tr>
+<tr><td>Strangers understand it</td><td>60-second comprehension test, 5 people, pass at 3 of 5.</td><td class="wait">planned</td></tr>
 <tr><td>People see the variety</td><td>Card sort: 5 people, 12 clips, target ≥ 5 groups and at most one "waterfall".</td><td class="wait">planned</td></tr>
 <tr><td>Ink pieces plot</td><td>100 of 100 ink designs pass the plot budget (≤ 45 min, density ≤ 1.5).</td><td class="ok">pass</td></tr>
 <tr><td>60 fps at 20,000 segments</td><td>60 fps at 20,000 segments per step: Pixel 7 emulation, 4× CPU throttle, Apple M1 GPU. <i>An emulation; the real-phone measurement is pending (open wake with <span class="k">?fps</span>).</i></td><td class="wait">emulated</td></tr>

@@ -8,6 +8,7 @@ import { budget } from "../src/export";
 const NUMBERS = [1, 2, 5, 808, 4444, 12345, 99999, DESIGNS];
 
 test("a number gives the same design in Node and in the browser", async ({ page }) => {
+    test.setTimeout(300_000); // software GL renders each still view slowly; this checks state, not speed
     for (const n of NUMBERS) {
         const node = encode(designFor(n));
         await page.goto(`/?instant#n=${n}`);
@@ -44,12 +45,12 @@ test("one in five numbers is an ink piece, and ink pieces fit the plot budget", 
 test("an untouched design shares as a short #n= link; an edit switches to the full state", async ({ page }) => {
     await page.goto(`/?instant&edit#n=808`);
     await page.waitForFunction(() => (window as any).wake);
-    await expect(page.locator(".number")).toHaveText(/^No\. 808 · \w+$/); // number and species
+    await expect(page.locator(".number")).toHaveText(/^No\. 808 · [\w ]+$/); // number and species
     expect(page.url()).toMatch(/#n=808$/);
     // move the first slider to its maximum, whatever its range
     const knob = page.locator(".knob input").first();
     await knob.fill(await knob.getAttribute("max") ?? "1");
     await knob.dispatchEvent("input");
-    await expect(page.locator(".number")).toHaveText(/^No\. 808 · \w+ · edited$/);
+    await expect(page.locator(".number")).toHaveText(/^No\. 808 · [\w ]+ · edited$/);
     expect(page.url()).toContain("#s=");
 });

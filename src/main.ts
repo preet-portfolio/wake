@@ -10,6 +10,12 @@ import { encode, sanitize, shareUrl, stateFromLocation } from "./state";
 import { Budget, budgetLines, download, stamp, svgFromLines, toSVG } from "./export";
 import { buildPanel, h, initPanel, resetOpen } from "./panel";
 import { report } from "./telemetry";
+import { GrayScottGL } from "./grayscott-gl";
+import { SCIENCE_CARDS, gsAt } from "./science-cards";
+import { SCIENCE } from "./species";
+import { morphology } from "./science/grayscott";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 
 const params = new URLSearchParams(location.search);
 const INSTANT = params.has("instant");
@@ -87,6 +93,18 @@ const STILL_STEPS = 180;
 const isBehaviour = () => !!state.species && BEHAVIOURS.has(state.species);
 
 function stillFrame() {
+    if (isGS()) {
+        if (dirty) {
+            dirty = false;
+            liveRestart();
+            const { F, k } = gsAt(state.sp?.t ?? 0.3);
+            gs!.run(2500, F, k);
+            gsPresent();
+            finished = false;
+        }
+        if (!finished) { finished = true; onFinish?.(); onFinish = null; }
+        return;
+    }
     if (isBehaviour()) {
         if (dirty) {
             dirty = false;
@@ -146,11 +164,27 @@ let gravity: [number, number] = [0, 0];
 // cost more than the line-heads on a device without a fast GPU
 const tierScale = () => (tier === 0 ? 0.35 : tier === 1 ? 0.5 : tier === 2 ? 0.75 : 1);
 
+// ---------- Turing patterns: a field on the GPU, not line-heads ----------
+const isGS = () => state.species === "grayscott";
+let gs: GrayScottGL | null = null;
+
+function gsPresent() {
+    const st = state.style;
+    gs!.present(renderer.canvas.width, renderer.canvas.height, hexToRgb(st.paper), hexToRgb(st.ink), st.palette, st.shift);
+}
+
 function liveRestart() {
     const [w, h] = canvasPx();
     const cs = Math.max(0.5, tierScale()), ts = tierScale();
     renderer.resize(Math.round(w * cs), Math.round(h * cs));
-    sim = new Sim(structuredClone(state), TIERS[tier], renderer.bounds);
+    sim = new Sim(structuredClone(state), isGS() ? 1 : TIERS[tier], renderer.bounds);
+    if (isGS()) {
+        gs ??= new GrayScottGL(renderer.gl);
+        // about one cell per two CSS pixels, fewer on slow devices
+        const cap = tier >= 3 ? 512 : 256, k = Math.min(1, cap / Math.max(w, h) * dpr()) / 2;
+        gs.reset(Math.max(64, Math.round((w / dpr()) * k * dpr())), Math.max(64, Math.round((h / dpr()) * k * dpr())), state.seed);
+        return;
+    }
     const { c0, c1 } = style();
     renderer.trailsReset(Math.round(w * ts), Math.round(h * ts), c0, c1, state.style.grain, state.seed);
     acc = 0;
@@ -194,7 +228,8 @@ function autoExpose() {
         const crushed = sorted.filter(v => v <= 12).length / N;
         k = crushed > 0.015 ? 0.7 : Math.pow((255 - 135) / Math.max(4, 255 - sorted[Math.floor(N * 0.03)]), 0.6);
     }
-    exposure = Math.min(40, Math.max(0.01, exposure * Math.min(1.3, Math.max(0.7, k))));
+    // the floor is low: Lorenz twins start thousands-deep on one line
+    exposure = Math.min(40, Math.max(0.0003, exposure * Math.min(1.3, Math.max(0.7, k))));
 }
 
 function liveFrame(now: number) {
@@ -202,6 +237,21 @@ function liveFrame(now: number) {
     lastTime = now;
     if (dirty) { liveRestart(); dirty = false; }
     if (!pointer.down && now - pointer.lastMove > 80) { pointer.vx *= 0.5; pointer.vy *= 0.5; if (pointer.mode === "stir" && Math.abs(pointer.vx) + Math.abs(pointer.vy) < 0.05) pointer.mode = "none"; }
+    if (isGS()) {
+        if (!paused) {
+            const { F, k } = gsAt(state.sp?.t ?? 0.3);
+            // touching drops fresh chemical where you are
+            const b = renderer.bounds;
+            const brush: [number, number, number] | null = pointer.mode !== "none"
+                ? [((pointer.x - b.x0) / (b.x1 - b.x0)) * gs!.w, (1 - (pointer.y - b.y0) / (b.y1 - b.y0)) * gs!.h, 4]
+                : null;
+            gs!.run(Math.round((state.sp?.iters ?? 12) * state.live.speed), F, k, brush);
+            settleTier(now, dt);
+        }
+        gsPresent();
+        updateCardReadout();
+        return;
+    }
     if (!paused) {
         acc += dt * 60 * state.live.speed;
         // on slow frames, catching up would only make the next frame slower
@@ -214,6 +264,7 @@ function liveFrame(now: number) {
         settleTier(now, dt);
     }
     renderer.trailsPresent(state.style.blend === "add" || state.style.blend === "screen");
+    updateCardReadout();
 }
 
 function settleTier(now: number, dt: number) {
@@ -272,6 +323,7 @@ function commit(rebuildPanel = false, byUser = true) {
     if (rebuildPanel && editing) buildPanel();
     placeHandles();
     renderNumber();
+    renderCard();
     document.body.style.background = state.style.paper2;
     document.body.classList.toggle("dark", hexToRgb(state.style.paper).reduce((a, b) => a + b) / 3 < 0.5);
 }
@@ -280,12 +332,13 @@ function showDesign(n: number) {
     state = designFor(n);
     resetOpen();
     variant = "";
+    cardOpen = SCIENCE.includes(state.species!); // science opens its card: the point is to understand it
     commit(true, false);
 }
 // Discovery order: a shuffled bag of species. Every common species comes up
 // once per round in random order, the rare one every third round, and the
 // first of a round is never the species already on screen.
-const ALL_SPECIES = [...SPECIES_WEIGHTS.map(([k]) => k), "ink"] as const;
+const ALL_SPECIES = [...SPECIES_WEIGHTS.map(([k]) => k), "ink", ...SCIENCE] as const;
 let bag: string[] = [];
 let round = 0;
 function nextSpecies(current: string | undefined): string {
@@ -306,6 +359,55 @@ function newDesign() {
         if (speciesOf(n) === want) return showDesign(n);
     }
 }
+
+// ---------- the ⓘ card: what you're looking at, and one control that shows it ----------
+
+const cardEl = $<HTMLElement>(".card");
+let cardOpen = false;
+let readoutEl: HTMLElement | null = null;
+
+function renderCard() {
+    const kind = state.species;
+    const card = kind ? SCIENCE_CARDS[kind] : undefined;
+    $<HTMLButtonElement>("#info").hidden = !kind;
+    cardEl.hidden = !(cardOpen && kind);
+    if (!kind) return;
+    const info = SPECIES_INFO[kind];
+    const kids: (Node | string)[] = [h("h3", {}, info.name), h("p", {}, card ? card.sentence : info.hint)];
+    readoutEl = null;
+    if (card) {
+        const eq = h("div", { class: "eq" });
+        // the TeX is our own constant (science-cards.ts), never user input
+        eq.innerHTML = katex.renderToString(card.tex, { displayMode: true, throwOnError: false, output: "html" });
+        const a = card.aha, sp = (state.sp ??= {});
+        const out = h("output", {}, a.show(sp[a.key] ?? a.min));
+        const input = h("input", { type: "range", min: a.min, max: a.max, step: a.step, value: sp[a.key] ?? a.min, "aria-label": a.key }) as HTMLInputElement;
+        input.addEventListener("input", () => {
+            const v = +input.value;
+            sp[a.key] = v;
+            out.textContent = a.show(v);
+            if (a.restart) commit();
+            else {
+                // live: the running system feels the change without starting over
+                if (sim?.state.sp) sim.state.sp[a.key] = v;
+                variant = "edited";
+                history.replaceState(null, "", `${location.search}#s=${encode(state)}`);
+                renderNumber();
+            }
+        });
+        readoutEl = kind === "kuramoto" ? h("div", { class: "readout" }) : null;
+        kids.push(eq, h("label", { class: "aha" }, input, out), ...(readoutEl ? [readoutEl] : []), h("p", { class: "source" }, card.source));
+    }
+    cardEl.replaceChildren(...kids);
+}
+
+function updateCardReadout() {
+    if (!readoutEl || !sim?.extra || state.species !== "kuramoto" || sim.frame % 6) return;
+    const r = sim.extra.r as number;
+    readoutEl.textContent = `order r = ${r.toFixed(2)} ${"▮".repeat(Math.round(r * 20))}`;
+}
+
+$("#info").addEventListener("click", () => { cardOpen = !cardOpen; renderCard(); });
 
 function renderNumber() {
     const n = state.design;
@@ -549,11 +651,15 @@ addEventListener("hashchange", () => {
     if (encode(next) === encode(state)) return; // our own replaceState echoing back
     state = next;
     variant = "";
+    cardOpen = SCIENCE.includes(state.species!);
     commit(true, false);
 });
 new ResizeObserver(() => { dirty = true; placeHandles(); }).observe(stage);
 if (fresh && !INSTANT) newDesign(); // every visit starts from a new design
-else commit(false, false);
+else {
+    cardOpen = !INSTANT && SCIENCE.includes(state.species!); // a science link opens with its explanation
+    commit(false, false);
+}
 setEditing(params.has("edit"));
 if (paused) { $("#pause").textContent = "▶"; $("#pause").title = "play"; }
 requestAnimationFrame(frame);
@@ -591,8 +697,17 @@ window.wake = {
     fps: () => fps.value,
     // motion census: how uniform the direction is (0 = every way, 1 = all one way),
     // how much it streams toward the centre (-1 out, +1 in) and the mean speed in world units per step
+    // GPU Gray–Scott on a square grid, read back and described (for the GPU-vs-CPU test)
+    grayscott(F: number, k: number, size = 128, steps = 6000) {
+        const g = new GrayScottGL(renderer.gl);
+        g.reset(size, size, 1, 12); // the CPU reference's exact starting field
+        for (let i = 0; i < steps; i += 500) g.run(Math.min(500, steps - i), F, k);
+        const v = g.readV();
+        dirty = true;
+        return { ...morphology(v, size), v: Array.from(v) };
+    },
     motion: () => {
-        if (VIEW !== "live") return null;
+        if (VIEW !== "live" || isGS()) return null;
         let sx = 0, sy = 0, inward = 0, speed = 0, n = 0;
         for (let i = 0; i < sim.n; i++) {
             const vx = sim.x[i] - sim.px[i], vy = sim.y[i] - sim.py[i], v = Math.hypot(vx, vy);

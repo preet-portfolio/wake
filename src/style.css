@@ -51,6 +51,24 @@ body.dark .tools button, body.dark .tools a { background: #0006; }
 .tools button[aria-pressed=true] { background: var(--ink); color: var(--sheet); }
 
 body.instant .mark, body.instant .dock, body.instant .tools { display: none; }
+/* the ⓘ card: what you're looking at, and the one control that shows it */
+.card { position: absolute; top: 84px; left: 18px; width: min(380px, calc(100vw - 36px)); padding: 14px 16px 12px; z-index: 6;
+        background: color-mix(in srgb, var(--sheet) 82%, transparent); color: var(--ink); border: 1px solid var(--rule);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 10px 40px -20px #0008; }
+body.dark .card { background: #0b0c12cc; color: #ece8df; border-color: #ffffff22; }
+.card h3 { font: italic 26px/1 var(--serif); margin: 0 0 6px; }
+.card p { margin: 0 0 8px; font-size: 12px; line-height: 1.5; }
+.card .eq { overflow-x: auto; font-size: 13px; margin: 4px 0 8px; }
+.card .eq .katex-display { margin: 0; }
+.card .aha { display: grid; gap: 4px; margin: 6px 0 8px; }
+.card .aha output { color: var(--red); font-size: 12px; }
+body.dark .card .aha output { color: #ffb38a; }
+.card .readout { font-size: 11px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; }
+.card .source { color: var(--mute); font-size: 10.5px; margin: 0; }
+body.idle .card { opacity: 0; pointer-events: none; }
+.card { transition: opacity .8s ease; }
+@media (max-width: 760px) { .card { top: auto; bottom: 96px; max-height: 45vh; overflow-y: auto; } }
+
 /* when you're just watching, everything but the drawing steps aside */
 .mark, .dock, .tools { transition: opacity .8s ease; }
 body.idle .mark, body.idle .dock, body.idle .tools { opacity: 0; pointer-events: none; }

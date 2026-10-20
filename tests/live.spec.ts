@@ -120,7 +120,7 @@ test("100 presses of ✦ new: never the same species twice in a row, and every s
         seen.push(await page.evaluate(() => (window as any).wake.state.species));
     }
     for (let i = 1; i < seen.length; i++) expect(seen[i], `press ${i}`).not.toBe(seen[i - 1]);
-    const all = ["flow", "orbit", "flock", "grid", "waves", "pulse", "growth", "constellation", "ink"];
+    const all = ["flow", "orbit", "flock", "grid", "waves", "pulse", "growth", "constellation", "ink", "lorenz", "pendulum", "threebody", "kuramoto", "chladni", "grayscott"];
     for (const k of all) expect(seen, `species ${k}`).toContain(k);
     const counts = Object.fromEntries(all.map(k => [k, seen.filter(s => s === k).length]));
     console.log("100 presses:", JSON.stringify(counts));

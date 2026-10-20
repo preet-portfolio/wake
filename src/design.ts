@@ -6,12 +6,13 @@
 import { runAll, SEG } from "./engine";
 import { Budget } from "./export";
 import { makeRng, type Rng } from "./rng";
-import type { SpeciesKind } from "./species";
+import { SCIENCE, type SpeciesKind } from "./species";
 import { BLOCKS, DESIGNS, PALETTES, WORLD, defaultState, defaultStyle, newBlock, type Block, type BlockKind, type Palette, type SeedKind, type SignalKind, type State } from "./model";
 
-export type Mode = "colour" | "ink";
+export type Mode = "colour" | "ink" | "science";
 
-export const modeOf = (n: number): Mode => (n % 5 === 0 ? "ink" : "colour");
+/** One number in five is ink, one in five is science (ending in 3 or 8), the rest colour. */
+export const modeOf = (n: number): Mode => (n % 5 === 0 ? "ink" : n % 5 === 3 ? "science" : "colour");
 
 /** Colour species and their weights: constellation is the rare one. */
 export const SPECIES_WEIGHTS: [SpeciesKind, number][] = [
@@ -22,6 +23,7 @@ export const SPECIES_WEIGHTS: [SpeciesKind, number][] = [
 /** The species of a number: decided first, from its own random stream. */
 export function speciesOf(n: number): SpeciesKind {
     if (modeOf(n) === "ink") return "ink";
+    if (modeOf(n) === "science") return SCIENCE[Math.floor(makeRng(n * 2654435 + 17)() * SCIENCE.length)];
     const x = makeRng(n * 2654435 + 17)();
     let acc = 0;
     for (const [k, w] of SPECIES_WEIGHTS) if (x < (acc += w)) return k;
@@ -261,9 +263,63 @@ function speciesDesign(n: number, kind: SpeciesKind): State {
     return s;
 }
 
+/** A science design: the phenomenon at settings where its "aha" is one slider away. */
+function scienceDesign(n: number, kind: SpeciesKind): State {
+    const r = makeRng(n * 7919 + 4242);
+    const between = (a: number, b: number) => a + (b - a) * r();
+    const int = (a: number, b: number) => Math.round(between(a, b));
+    const s = defaultState();
+    s.species = kind;
+    s.blocks = [];
+    s.seed = 1 + Math.floor(r() * 99999);
+    colourStyle(r, s);
+    const st = s.style;
+    // science reads best as light on a dark ground
+    st.paper = DARK[int(0, DARK.length - 1)]; st.paper2 = shade(st.paper, 0.5); st.blend = "add";
+    st.alpha = 0.35; // a starting point; species below may lower it
+    switch (kind) {
+        case "lorenz":
+            s.sp = { rho: 28, eps: -9, sub: 6, turn: +between(0.5, 1.5).toFixed(2) };
+            s.live = { mode: "trails", trail: int(25, 60), speed: 1 };
+            st.width = +between(0.7, 1.1).toFixed(2); st.soft = 0.2;
+            st.alpha = 0.05; // thousands of trajectories overlap on the attractor
+            break;
+        case "pendulum":
+            s.sp = { eps: int(-12, -7), angle: +between(1.9, 2.9).toFixed(2) };
+            s.live = { mode: "trails", trail: int(60, 200), speed: 1 };
+            st.width = +between(1.4, 2.4).toFixed(2); st.soft = 0.3;
+            break;
+        case "threebody":
+            s.sp = { nudge: 0.002 };
+            s.live = { mode: "trails", trail: int(150, 400), speed: 1 };
+            st.width = +between(3, 6).toFixed(2); st.soft = 0.7;
+            break;
+        case "kuramoto":
+            // start below the critical coupling: random flashing, waiting for you to raise K
+            s.sp = { K: +between(0.3, 0.8).toFixed(2) };
+            s.live = { mode: "trails", trail: int(8, 20), speed: 1 };
+            st.width = +between(6, 10).toFixed(2); st.soft = 0.9;
+            if (r() < 0.5) { st.palette = null; st.ink = ["#ffd86b", "#c6ff7a", "#9be8ff"][int(0, 2)]; }
+            break;
+        case "chladni":
+            s.sp = { mode: int(0, 11), jump: 9 };
+            s.live = { mode: "trails", trail: int(3, 8), speed: 1 };
+            st.palette = null; st.ink = ["#eadbb4", "#f4efe2", "#d9c7a0"][int(0, 2)];
+            st.width = +between(1.5, 2.5).toFixed(2); st.soft = 0.2; st.grain = 0.2;
+            break;
+        case "grayscott":
+            s.sp = { t: +between(0, 0.6).toFixed(2), iters: 12 };
+            s.live = { mode: "trails", trail: 1, speed: 1 };
+            break;
+    }
+    s.design = n;
+    return s;
+}
+
 /** The design with this number. Same number, same design, everywhere. */
 export function designFor(n: number): State {
     const kind = speciesOf(n);
+    if (SCIENCE.includes(kind)) return scienceDesign(n, kind);
     if (kind !== "flow" && kind !== "ink") return speciesDesign(n, kind);
     const mode = modeOf(n);
     let best: State | null = null, bestScore = -Infinity;

@@ -9,9 +9,14 @@
 // grid (Agnes Martin's ruled grids), growth (branching growth), pulse
 // (expanding rings), constellation (drifting stars joined to near neighbours).
 import { noise2, type Rng } from "./rng";
+import { SCIENCE_BEHAVIOURS } from "./species-science";
 import type { Sim } from "./sim";
 
-export type SpeciesKind = "flow" | "orbit" | "flock" | "waves" | "grid" | "growth" | "pulse" | "constellation" | "ink";
+export type SpeciesKind = "flow" | "orbit" | "flock" | "waves" | "grid" | "growth" | "pulse" | "constellation" | "ink"
+    | "lorenz" | "pendulum" | "threebody" | "kuramoto" | "chladni" | "grayscott";
+
+/** The science family: real phenomena from their equations. */
+export const SCIENCE: SpeciesKind[] = ["lorenz", "pendulum", "threebody", "kuramoto", "chladni", "grayscott"];
 
 export const SPECIES_INFO: Record<SpeciesKind, { name: string; hint: string }> = {
     flow: { name: "flow", hint: "line-heads drifting through a swirling field" },
@@ -23,6 +28,12 @@ export const SPECIES_INFO: Record<SpeciesKind, { name: string; hint: string }> =
     pulse: { name: "pulse", hint: "rings breathing out from a centre" },
     constellation: { name: "constellation", hint: "drifting stars joined to their neighbours" },
     ink: { name: "ink", hint: "the plotter drawing, replayed" },
+    lorenz: { name: "Lorenz attractor", hint: "chaos: a billionth of a difference becomes everything" },
+    pendulum: { name: "double pendulum", hint: "twins released a hair apart part ways within seconds" },
+    threebody: { name: "figure eight", hint: "three equal masses chasing each other along one orbit" },
+    kuramoto: { name: "fireflies", hint: "past a critical coupling, strangers flash as one" },
+    chladni: { name: "Chladni plate", hint: "sand gathers where a vibrating plate stands still" },
+    grayscott: { name: "Turing patterns", hint: "two reacting chemicals grow spots and stripes" },
 };
 
 /** Controls shown in the panel for each behaviour species: [key, label, min, max, step]. */
@@ -37,7 +48,7 @@ export const SPECIES_PARAMS: Partial<Record<SpeciesKind, [string, string, number
 };
 
 /** Species implemented here (the rest run the block stack). */
-export const BEHAVIOURS = new Set<SpeciesKind>(["orbit", "flock", "waves", "grid", "growth", "pulse", "constellation"]);
+export const BEHAVIOURS = new Set<SpeciesKind>(["orbit", "flock", "waves", "grid", "growth", "pulse", "constellation", "lorenz", "pendulum", "threebody", "kuramoto", "chladni"]);
 
 export interface Bounds { x0: number; x1: number; y0: number; y1: number }
 
@@ -348,5 +359,5 @@ function move(sim: Sim, pos: (i: number) => [number, number]) {
 }
 
 export const BEHAVIOUR: Partial<Record<SpeciesKind, Behaviour>> = {
-    orbit, flock, waves: rows("waves"), grid: rows("grid"), growth, pulse, constellation,
+    orbit, flock, waves: rows("waves"), grid: rows("grid"), growth, pulse, constellation, ...SCIENCE_BEHAVIOURS,
 };

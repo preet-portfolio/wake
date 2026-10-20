@@ -18,6 +18,8 @@ uniform float spread, phase;
 uniform vec3 ink;
 out vec3 vColor;
 out float vAcross;
+out float vAlong;
+out float vDot;
 void main() {
     vec2 a = seg.xy, b = seg.zw;
     vec2 d = b - a;
@@ -30,18 +32,24 @@ void main() {
     gl_Position = vec4((p.x - 500.0) / (view.x * 0.5), -(p.y - 500.0) / (view.y * 0.5), 0.0, 1.0);
     vColor = usePalette ? clamp(pa + pb * cos(6.2831853 * (pc * (u * spread + phase) + pd)), 0.0, 1.0) : ink;
     vAcross = corner.y;
+    vAlong = corner.x * 2.0 - 1.0;
+    vDot = len < width * 0.5 ? 1.0 : 0.0;   // a zero-length mark is a dot: draw it round
 }`;
 
 const LINE_FS = `#version 300 es
 precision highp float; // must match the vertex shader: both declare "soft"
 in vec3 vColor;
 in float vAcross;
+in float vAlong;
+in float vDot;
 uniform float alpha;
 uniform float soft;
 uniform bool multiply;
 out vec4 outColor;
 void main() {
-    float a = alpha * mix(1.0, exp(-3.5 * vAcross * vAcross), soft);
+    float r2 = vAcross * vAcross + vDot * vAlong * vAlong;
+    if (vDot > 0.5 && r2 > 1.0) discard;
+    float a = alpha * mix(1.0, exp(-3.5 * r2), soft);
     // multiply darkens toward the colour; everything else is premultiplied colour
     outColor = multiply ? vec4(mix(vec3(1.0), vColor, a), 1.0) : vec4(vColor * a, a);
 }`;
@@ -100,7 +108,7 @@ void main() {
     outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
-function program(gl: WebGL2RenderingContext, vs: string, fs: string) {
+export function program(gl: WebGL2RenderingContext, vs: string, fs: string) {
     const prog = gl.createProgram()!;
     for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]] as const) {
         const sh = gl.createShader(type)!;
