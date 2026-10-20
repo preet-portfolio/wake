@@ -15,7 +15,8 @@ const results: Record<string, unknown> = {};
 for (const [gpu, args] of [["gpu", []], ["software", ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]]] as const) {
     test(`alive for 60 s · ${gpu}`, async ({ playwright }) => {
         test.setTimeout(300_000); // screenshots are slow on software rendering
-        const browser = await playwright.chromium.launch({ args: [...args] });
+        // gpu: full Chromium (Metal); software: SwiftShader
+        const browser = await playwright.chromium.launch({ args: [...args], ...(gpu === "gpu" ? { channel: "chromium" } : {}) });
         const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
         await page.goto(`/#n=${FLOW}`);
         await page.waitForFunction(() => (window as any).wake);

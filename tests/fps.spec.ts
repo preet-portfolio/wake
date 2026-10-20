@@ -20,7 +20,7 @@ void defaultBrowserType;
 for (const [gpu, args] of [["gpu", []], ["software-gl", ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]]] as const) {
     for (const throttle of [1, 4]) {
         test(`fps · ${gpu} · cpu ÷${throttle}`, async ({ playwright }) => {
-            const browser = await playwright.chromium.launch({ args: [...args] });
+            const browser = await playwright.chromium.launch({ args: [...args], ...(gpu === "gpu" ? { channel: "chromium" } : {}) });
             const ctx = await browser.newContext({ ...pixel });
             const page = await ctx.newPage();
             const cdp = await ctx.newCDPSession(page);

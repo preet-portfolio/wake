@@ -119,9 +119,9 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 <tr><th>claim</th><th>evidence</th><th></th></tr>
 <tr><td>It's mine, not a copy</td><td>jscpd token comparison of wake (compiled to plain JS) against uji's original source: <b>0 shared clones</b>. A planted control was caught, which also exposed that jscpd silently skips files over 1,000 lines by default.</td><td class="ok">pass</td></tr>
 <tr><td>Same link, same drawing</td><td>Byte-identical SVGs for every regression state, reloaded from the link; different seeds differ. Design numbers produce identical states in Node and in the browser.</td><td class="ok">pass</td></tr>
-<tr><td>It looks the way it should</td><td>25 Playwright visual-regression baselines (blocks, signals, seed shapes and collection pieces), 37 tests in all.</td><td class="ok">pass</td></tr>
+<tr><td>It looks the way it should</td><td>25 Playwright visual-regression baselines (blocks, signals, seed shapes and collection pieces), about 70 automated tests in all.</td><td class="ok">pass</td></tr>
 <tr><td>A link can't hurt the viewer</td><td>A hostile-link test: oversized values are clamped and injected markup never reaches the SVG.</td><td class="ok">pass</td></tr>
-<tr><td>It's alive and never freezes</td><td>For 60 seconds the share of pixels changing every second never fell below 33 % on a GPU or 35 % on software rendering, against a 0.5 % floor. Visible motion within 1 s. Playwright videos of the first 10 s on desktop and phone.</td><td class="ok">pass</td></tr>
+<tr><td>It's alive and never freezes</td><td>For 60 seconds the share of pixels changing every second stayed far above a 0.5 % floor, on a GPU and on software rendering. Visible motion within 1 s of every fresh visit (the two species that start almost still, growth and Lorenz, are never a visitor's first design). Playwright videos of the first 10 s on desktop and phone.</td><td class="ok">pass</td></tr>
 <tr><td>A new design is one obvious action away</td><td>✦ new is at least 150 × 56 px and on screen on desktop and phone; a tap and the space bar also work. Controls stay hidden until asked for.</td><td class="ok">pass</td></tr>
 <tr><td>More than one personality</td><td>Same 300 numbers: inward-streaming designs 61 % → 28 %, mean inward motion 0.38 → 0.05, k-means families 2 → 3, CLIP diversity 0.190 → 0.213. 100 presses of ✦ new: no species twice in a row, all nine appear.</td><td class="ok">pass</td></tr>
 <tr><td>The science is right</td><td>7 solver tests against published values (above), GPU = CPU, every card has an equation, a control and a dated source; fireflies sync above K꜀ and stop below it.</td><td class="ok">pass</td></tr>
@@ -137,7 +137,7 @@ td.ok { color: #3f7d4e; } td.wait { color: var(--red); }
 
 <p class="statement">Every part of a line keeps its own clock, and the drawing is the record of them arriving, over and over, as long as you watch.</p>
 <a class="cta" href="./">open wake →</a>
-<p class="mono" style="color:var(--mute);margin-top:40px"><a href="credits.html">Full credits &amp; sources →</a><br>Inspired by uji by Noah Doersing. Drawing machines by Desmond Paul Henry and Vera Molnár's <i>(Des)Ordres</i> sit further back in the lineage.</p>
+<p class="mono" style="color:var(--mute);margin-top:40px"><a href="credits.html">Full credits &amp; sources →</a> · <a href="https://github.com/preet-portfolio/wake">source on GitHub</a><br>Inspired by uji by Noah Doersing. Drawing machines by Desmond Paul Henry and Vera Molnár's <i>(Des)Ordres</i> sit further back in the lineage.</p>
 </div>
 </body>
 </html>

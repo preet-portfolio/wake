@@ -7,3 +7,4 @@ test-results/
 reports/census/*/frames/
 reports/census/*/clips/
 reports/census/*/clip.npy
+reports/jscpd/html/

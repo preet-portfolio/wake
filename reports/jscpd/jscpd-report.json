@@ -1,12 +1,144 @@
 {
   "statistics": {
-    "detectionDate": "2026-10-20T02:42:50.786Z",
+    "detectionDate": "2026-10-20T07:50:31.798Z",
     "formats": {
       "javascript": {
         "sources": {
+          "reports/jscpd/compiled/wake/science/threebody.js": {
+            "lines": 36,
+            "tokens": 864,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/science/pendulum.js": {
+            "lines": 25,
+            "tokens": 1062,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/science/lorenz.js": {
+            "lines": 32,
+            "tokens": 947,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/science/kuramoto.js": {
+            "lines": 36,
+            "tokens": 739,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/science/grayscott.js": {
+            "lines": 73,
+            "tokens": 1573,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/science/chladni.js": {
+            "lines": 3,
+            "tokens": 102,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/telemetry.js": {
+            "lines": 22,
+            "tokens": 275,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
           "reports/jscpd/compiled/wake/state.js": {
-            "lines": 45,
-            "tokens": 607,
+            "lines": 126,
+            "tokens": 2400,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/species.js": {
+            "lines": 411,
+            "tokens": 9118,
+            "sources": 1,
+            "clones": 4,
+            "duplicatedLines": 26,
+            "duplicatedTokens": 456,
+            "percentage": 6.33,
+            "percentageTokens": 5,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/species-science.js": {
+            "lines": 185,
+            "tokens": 3846,
+            "sources": 1,
+            "clones": 12,
+            "duplicatedLines": 68,
+            "duplicatedTokens": 942,
+            "percentage": 36.76,
+            "percentageTokens": 24.49,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/sim.js": {
+            "lines": 249,
+            "tokens": 3905,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/science-cards.js": {
+            "lines": 43,
+            "tokens": 883,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -17,8 +149,20 @@
             "newClones": 0
           },
           "reports/jscpd/compiled/wake/rng.js": {
-            "lines": 20,
-            "tokens": 387,
+            "lines": 47,
+            "tokens": 1161,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/panel.js": {
+            "lines": 152,
+            "tokens": 4760,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -29,8 +173,8 @@
             "newClones": 0
           },
           "reports/jscpd/compiled/wake/model.js": {
-            "lines": 71,
-            "tokens": 1276,
+            "lines": 102,
+            "tokens": 2121,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -41,8 +185,8 @@
             "newClones": 0
           },
           "reports/jscpd/compiled/wake/main.js": {
-            "lines": 362,
-            "tokens": 7320,
+            "lines": 723,
+            "tokens": 11352,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -52,9 +196,33 @@
             "newDuplicatedLines": 0,
             "newClones": 0
           },
+          "reports/jscpd/compiled/wake/grayscott-gl.js": {
+            "lines": 140,
+            "tokens": 1747,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 7,
+            "duplicatedTokens": 86,
+            "percentage": 5,
+            "percentageTokens": 4.92,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
           "reports/jscpd/compiled/wake/gl.js": {
-            "lines": 88,
-            "tokens": 976,
+            "lines": 326,
+            "tokens": 3689,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 7,
+            "duplicatedTokens": 86,
+            "percentage": 2.15,
+            "percentageTokens": 2.33,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/field.js": {
+            "lines": 86,
+            "tokens": 1451,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -65,8 +233,8 @@
             "newClones": 0
           },
           "reports/jscpd/compiled/wake/export.js": {
-            "lines": 86,
-            "tokens": 1299,
+            "lines": 100,
+            "tokens": 1591,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
@@ -77,14 +245,26 @@
             "newClones": 0
           },
           "reports/jscpd/compiled/wake/engine.js": {
-            "lines": 218,
-            "tokens": 4143,
+            "lines": 153,
+            "tokens": 2913,
             "sources": 1,
             "clones": 0,
             "duplicatedLines": 0,
             "duplicatedTokens": 0,
             "percentage": 0,
             "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "reports/jscpd/compiled/wake/design.js": {
+            "lines": 371,
+            "tokens": 7437,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 18,
+            "duplicatedTokens": 298,
+            "percentage": 4.85,
+            "percentageTokens": 4.01,
             "newDuplicatedLines": 0,
             "newClones": 0
           },
@@ -114,33 +294,393 @@
           }
         },
         "total": {
-          "lines": 2297,
-          "tokens": 32090,
-          "sources": 9,
-          "clones": 1,
-          "duplicatedLines": 7,
-          "duplicatedTokens": 70,
-          "percentage": 0.3,
-          "percentageTokens": 0.22,
+          "lines": 4848,
+          "tokens": 80018,
+          "sources": 24,
+          "clones": 11,
+          "duplicatedLines": 70,
+          "duplicatedTokens": 1004,
+          "percentage": 1.44,
+          "percentageTokens": 1.25,
           "newDuplicatedLines": 0,
           "newClones": 0
         }
       }
     },
     "total": {
-      "lines": 2297,
-      "tokens": 32090,
-      "sources": 9,
-      "clones": 1,
-      "duplicatedLines": 7,
-      "duplicatedTokens": 70,
-      "percentage": 0.3,
-      "percentageTokens": 0.22,
+      "lines": 4848,
+      "tokens": 80018,
+      "sources": 24,
+      "clones": 11,
+      "duplicatedLines": 70,
+      "duplicatedTokens": 1004,
+      "percentage": 1.44,
+      "percentageTokens": 1.25,
       "newDuplicatedLines": 0,
       "newClones": 0
     }
   },
   "duplicates": [
+    {
+      "format": "javascript",
+      "lines": 7,
+      "fragment": "),\n    init(sim, r) {\n        const b = sim.bounds;\n        for (let i = 0; i < sim.n; i++) {\n            sim.x[i] = sim.px[i] = b.x0 + r() * (b.x1 - b.x0);\n            sim.y[i] = sim.py[i] = b.y0 + r() * (b.y1 - b.y0);\n            sim",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species.js",
+        "start": 326,
+        "end": 332,
+        "startLoc": {
+          "line": 326,
+          "column": 2,
+          "position": 7485
+        },
+        "endLoc": {
+          "line": 332,
+          "column": 4,
+          "position": 7628
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species.js",
+        "start": 67,
+        "end": 73,
+        "startLoc": {
+          "line": 67,
+          "column": 5,
+          "position": 2177
+        },
+        "endLoc": {
+          "line": 73,
+          "column": 6,
+          "position": 2320
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 8,
+      "fragment": "));\n            let c = grid.get(k);\n            if (!c)\n                grid.set(k, (c = []));\n            c.push(i);\n        }\n        for (let i = 0; i < n; i++) {\n            const",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species.js",
+        "start": 361,
+        "end": 368,
+        "startLoc": {
+          "line": 361,
+          "column": 2,
+          "position": 8286
+        },
+        "endLoc": {
+          "line": 368,
+          "column": 6,
+          "position": 8371
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species.js",
+        "start": 87,
+        "end": 94,
+        "startLoc": {
+          "line": 87,
+          "column": 2,
+          "position": 2717
+        },
+        "endLoc": {
+          "line": 94,
+          "column": 4,
+          "position": 2802
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 6,
+      "fragment": ");\n        for (let i = 0; i < sim.n; i++) {\n            sim.px[i] = sim.x[i];\n            sim.py[i] = sim.y[i];\n        }\n        project",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 27,
+        "end": 32,
+        "startLoc": {
+          "line": 27,
+          "column": 6,
+          "position": 557
+        },
+        "endLoc": {
+          "line": 32,
+          "column": 8,
+          "position": 628
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 16,
+        "end": 21,
+        "startLoc": {
+          "line": 16,
+          "column": 4,
+          "position": 354
+        },
+        "endLoc": {
+          "line": 21,
+          "column": 2,
+          "position": 425
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 8,
+      "fragment": "(sim);\n        for (let i = 0; i < sim.n; i++) {\n            sim.px[i] = sim.x[i];\n            sim.py[i] = sim.y[i];\n        }\n    },\n    step(sim) {\n        for",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 54,
+        "end": 61,
+        "startLoc": {
+          "line": 54,
+          "column": 7,
+          "position": 1162
+        },
+        "endLoc": {
+          "line": 61,
+          "column": 4,
+          "position": 1247
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 16,
+        "end": 23,
+        "startLoc": {
+          "line": 16,
+          "column": 8,
+          "position": 352
+        },
+        "endLoc": {
+          "line": 23,
+          "column": 6,
+          "position": 437
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 6,
+      "fragment": ");\n        for (let i = 0; i < sim.n; i++) {\n            sim.px[i] = sim.x[i];\n            sim.py[i] = sim.y[i];\n        }\n        bobsTo",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 63,
+        "end": 68,
+        "startLoc": {
+          "line": 63,
+          "column": 4,
+          "position": 1305
+        },
+        "endLoc": {
+          "line": 68,
+          "column": 7,
+          "position": 1376
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 16,
+        "end": 21,
+        "startLoc": {
+          "line": 16,
+          "column": 4,
+          "position": 354
+        },
+        "endLoc": {
+          "line": 21,
+          "column": 2,
+          "position": 425
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 8,
+      "fragment": "(sim);\n        for (let i = 0; i < sim.n; i++) {\n            sim.px[i] = sim.x[i];\n            sim.py[i] = sim.y[i];\n        }\n    },\n    step(sim) {\n        const dt",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 102,
+        "end": 109,
+        "startLoc": {
+          "line": 102,
+          "column": 9,
+          "position": 2057
+        },
+        "endLoc": {
+          "line": 109,
+          "column": 3,
+          "position": 2144
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 16,
+        "end": 23,
+        "startLoc": {
+          "line": 16,
+          "column": 8,
+          "position": 352
+        },
+        "endLoc": {
+          "line": 23,
+          "column": 2,
+          "position": 439
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 6,
+      "fragment": ");\n        for (let i = 0; i < sim.n; i++) {\n            sim.px[i] = sim.x[i];\n            sim.py[i] = sim.y[i];\n        }\n        bodiesTo",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 112,
+        "end": 117,
+        "startLoc": {
+          "line": 112,
+          "column": 5,
+          "position": 2210
+        },
+        "endLoc": {
+          "line": 117,
+          "column": 9,
+          "position": 2281
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 16,
+        "end": 21,
+        "startLoc": {
+          "line": 16,
+          "column": 4,
+          "position": 354
+        },
+        "endLoc": {
+          "line": 21,
+          "column": 2,
+          "position": 425
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 6,
+      "fragment": "(sim);\n        for (let i = 0; i < sim.n; i++)\n            sim.emit(sim.px[i], sim.py[i], sim.x[i], sim.y[i], sim.u[i]);\n    },\n};\nfunction bodiesTo",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 117,
+        "end": 122,
+        "startLoc": {
+          "line": 117,
+          "column": 9,
+          "position": 2282
+        },
+        "endLoc": {
+          "line": 122,
+          "column": 9,
+          "position": 2368
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/species-science.js",
+        "start": 32,
+        "end": 60,
+        "startLoc": {
+          "line": 32,
+          "column": 8,
+          "position": 629
+        },
+        "endLoc": {
+          "line": 60,
+          "column": 9,
+          "position": 1949
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 8,
+      "fragment": ");\n                const f = gl.createFramebuffer();\n                gl.bindFramebuffer(gl.FRAMEBUFFER, f);\n                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);\n                this.tex.push(t);\n                this.fbo.push(f);\n            }\n            this.trailW",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/gl.js",
+        "start": 207,
+        "end": 214,
+        "startLoc": {
+          "line": 207,
+          "column": 14,
+          "position": 1799
+        },
+        "endLoc": {
+          "line": 214,
+          "column": 7,
+          "position": 1885
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/grayscott-gl.js",
+        "start": 80,
+        "end": 87,
+        "startLoc": {
+          "line": 80,
+          "column": 2,
+          "position": 726
+        },
+        "endLoc": {
+          "line": 87,
+          "column": 4,
+          "position": 812
+        }
+      }
+    },
+    {
+      "format": "javascript",
+      "lines": 10,
+      "fragment": ");\n    const between = (a, b) => a + (b - a) * r();\n    const int = (a, b) => Math.round(between(a, b));\n    const s = defaultState();\n    s.species = kind;\n    s.blocks = [];\n    s.seed = 1 + Math.floor(r() * 99999);\n    colourStyle(r, s);\n    const st = s.style;\n    st",
+      "tokens": 0,
+      "firstFile": {
+        "name": "reports/jscpd/compiled/wake/design.js",
+        "start": 275,
+        "end": 284,
+        "startLoc": {
+          "line": 275,
+          "column": 5,
+          "position": 5940
+        },
+        "endLoc": {
+          "line": 284,
+          "column": 3,
+          "position": 6089
+        }
+      },
+      "secondFile": {
+        "name": "reports/jscpd/compiled/wake/design.js",
+        "start": 179,
+        "end": 188,
+        "startLoc": {
+          "line": 179,
+          "column": 6,
+          "position": 3659
+        },
+        "endLoc": {
+          "line": 188,
+          "column": 6,
+          "position": 3808
+        }
+      }
+    },
     {
       "format": "javascript",
       "lines": 8,

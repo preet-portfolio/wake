@@ -1,18 +1,18 @@
 {
  "minTokens": 30,
  "scanned": {
-  "lines": 2297,
-  "tokens": 32090,
-  "sources": 9,
-  "clones": 1,
-  "duplicatedLines": 7,
-  "duplicatedTokens": 70,
-  "percentage": 0.3,
-  "percentageTokens": 0.22,
+  "lines": 4848,
+  "tokens": 80018,
+  "sources": 24,
+  "clones": 11,
+  "duplicatedLines": 70,
+  "duplicatedTokens": 1004,
+  "percentage": 1.44,
+  "percentageTokens": 1.25,
   "newDuplicatedLines": 0,
   "newClones": 0
  },
- "totalClones": 1,
+ "totalClones": 11,
  "clonesBetweenWakeAndUji": 0,
  "cross": []
 }

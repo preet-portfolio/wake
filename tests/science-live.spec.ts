@@ -4,7 +4,8 @@ import { test, expect } from "@playwright/test";
 import { speciesOf } from "../src/design";
 import { PRESETS, simulate } from "../src/science/grayscott";
 
-test.use({ launchOptions: { args: [] } }); // a real GPU: float render targets
+// a real GPU: since Playwright 1.5x the default headless shell renders in software
+test.use({ channel: "chromium", launchOptions: { args: [] } }); // a real GPU: float render targets
 
 const firstOf = (kind: string) => { for (let n = 3; ; n += 5) if (speciesOf(n) === kind) return n; };
 
@@ -52,11 +53,12 @@ test("fireflies: raising K past K_c = 1 switches synchrony on; lowering it switc
     await page.goto(`/#n=${firstOf("kuramoto")}`);
     await page.waitForFunction(() => (window as any).wake);
     const slider = page.locator(".card .aha input");
-    const r = async () => { await page.waitForTimeout(6000); return parseFloat((await page.locator(".card .readout").textContent())!.match(/r = ([\d.]+)/)![1]); };
+    // synchrony takes simulated time, not wall time: poll the readout with a deadline
+    const r = async () => parseFloat((await page.locator(".card .readout").textContent())!.match(/r = ([\d.]+)/)![1]);
     await slider.fill("2.2"); await slider.dispatchEvent("input");
-    expect(await r()).toBeGreaterThan(0.5);
+    await expect.poll(r, { timeout: 30_000 }).toBeGreaterThan(0.5);
     await slider.fill("0.3"); await slider.dispatchEvent("input");
-    expect(await r()).toBeLessThan(0.25);
+    await expect.poll(r, { timeout: 30_000 }).toBeLessThan(0.25);
 });
 
 test("Lorenz: the ρ control reads out chaos, transient chaos and no chaos at the right thresholds", async ({ page }) => {

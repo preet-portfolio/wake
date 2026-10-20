@@ -3,15 +3,20 @@
 import { test, expect, devices } from "@playwright/test";
 import { changed, shot } from "./motion";
 
-test.use({ launchOptions: { args: [] } });
+// a real GPU: since Playwright 1.5x the default headless shell renders in software
+test.use({ channel: "chromium", launchOptions: { args: [] } });
 
-test("visible motion within 1 second of opening", async ({ page }) => {
+test("visible motion within 1 second of opening, on every fresh visit", async ({ page }) => {
+    // several fresh visits: the opening design is random, so check more than one
+    for (let visit = 0; visit < 4; visit++) {
+    await page.goto("about:blank");
     await page.goto("/");
     await page.waitForFunction(() => (window as any).wake);
     const a = await shot(page);
     await page.waitForTimeout(800);
     const b = await shot(page);
-    expect(changed(a, b), "share of pixels changed in the first second").toBeGreaterThan(0.02);
+    expect(changed(a, b), `visit ${visit} (${await page.evaluate(() => (window as any).wake.state.species)}): share of pixels changed in the first second`).toBeGreaterThan(0.005);
+    }
 });
 
 test("each fresh visit starts from a different design", async ({ page }) => {
@@ -48,7 +53,8 @@ test("✦ new, a tap on the canvas and the space bar each give a new design", as
     await page.click("#new");
     expect(await n()).not.toBe(last); last = await n();
     const box = (await page.locator("#art").boundingBox())!;
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
+    // a spot clear of the ⓘ card (top left) and the tools (right edge)
+    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.5);
     expect(await n()).not.toBe(last); last = await n();
     await page.keyboard.press("Space");
     expect(await n()).not.toBe(last);

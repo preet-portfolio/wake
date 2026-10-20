@@ -353,9 +353,15 @@ function nextSpecies(current: string | undefined): string {
     return bag.shift()!;
 }
 
-/** A random design of the next species in the bag. */
-function newDesign() {
-    const want = nextSpecies(state.design ? speciesOf(state.design) : state.species);
+// species whose first second is nearly still (measured: growth 0.05–1.3 % of pixels
+// change, Lorenz 0.3–1.1 %, every other species ≥ 1.4 %): never a visitor's very
+// first design, so the page is visibly alive from the start
+const CALM = new Set(["growth", "lorenz"]);
+
+/** A random design of the next species in the bag (the opening one always moves visibly). */
+function newDesign(opening = false) {
+    let want = nextSpecies(state.design ? speciesOf(state.design) : state.species);
+    if (opening && CALM.has(want)) { bag.push(want); want = nextSpecies(want); }
     for (;;) {
         const n = 1 + Math.floor(Math.random() * DESIGNS);
         if (speciesOf(n) === want) return showDesign(n);
@@ -579,7 +585,7 @@ function flash(sel: string, text: string) {
     setTimeout(() => (b.textContent = old), 1600);
 }
 
-$("#new").addEventListener("click", newDesign);
+$("#new").addEventListener("click", () => newDesign());
 
 // fullscreen, and controls that step aside when you're just watching
 function toggleFullscreen() {
@@ -657,7 +663,7 @@ addEventListener("hashchange", () => {
     commit(true, false);
 });
 new ResizeObserver(() => { dirty = true; placeHandles(); }).observe(stage);
-if (fresh && !INSTANT) newDesign(); // every visit starts from a new design
+if (fresh && !INSTANT) newDesign(true); // every visit starts from a new, visibly moving design
 else {
     cardOpen = !INSTANT && SCIENCE.includes(state.species!); // a science link opens with its explanation
     commit(false, false);

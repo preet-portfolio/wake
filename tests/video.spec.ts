@@ -5,7 +5,7 @@ import fs from "node:fs";
 for (const [name, opts] of [["desktop", { viewport: { width: 1280, height: 800 } }], ["phone", (({ defaultBrowserType, ...d }) => d)(devices["Pixel 7"])]] as const) {
     test(`first 10 s video · ${name}`, async ({ playwright }) => {
         test.setTimeout(60_000);
-        const browser = await playwright.chromium.launch();
+        const browser = await playwright.chromium.launch({ channel: "chromium" });
         const size = name === "desktop" ? { width: 1280, height: 800 } : { width: 412, height: 915 };
         const ctx = await browser.newContext({ ...(opts as any), recordVideo: { dir: "reports/videos/tmp", size } });
         const page = await ctx.newPage();

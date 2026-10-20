@@ -2,6 +2,7 @@
 import { test, expect } from "@playwright/test";
 
 test("hostile link is clamped and escaped", async ({ page }) => {
+    test.setTimeout(300_000); // the clamped worst case (20,000 × 600) renders slowly in software GL
     const evil = {
         v: 1, seed: "x", steps: 1e9,
         shape: { kind: "circle", n: 1e9, r: 400, cx: 500, cy: 500, rot: 0, sides: 1e6, la: 3, lb: 2, shuffle: 1e9, path: new Array(1e5).fill(1) },
