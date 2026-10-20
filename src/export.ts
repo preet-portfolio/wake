@@ -21,8 +21,10 @@ export function polylines(state: State): number[][] {
     return lines;
 }
 
+const xmlEscape = (s: string) => s.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
+
 export function toSVG(state: State, share = ""): string {
-    const f = (v: number) => v.toFixed(2);
+    const f = (v: number) => Number(v).toFixed(2);
     const paths = polylines(state).map(l => {
         let d = `M${f(l[0])} ${f(l[1])}`;
         for (let i = 2; i < l.length; i += 2) d += `L${f(l[i])} ${f(l[i + 1])}`;
@@ -30,8 +32,8 @@ export function toSVG(state: State, share = ""): string {
     });
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${WORLD}" height="${WORLD}" viewBox="0 0 ${WORLD} ${WORLD}">
-<desc>wake ${share}</desc>
-<g fill="none" stroke="black" stroke-width="${state.style.width}" stroke-linecap="round" stroke-linejoin="round">
+<desc>wake ${xmlEscape(share)}</desc>
+<g fill="none" stroke="black" stroke-width="${f(state.style.width)}" stroke-linecap="round" stroke-linejoin="round">
 ${paths.join("\n")}
 </g>
 </svg>
