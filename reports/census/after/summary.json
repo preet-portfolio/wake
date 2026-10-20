@@ -1,0 +1,306 @@
+{
+ "label": "after",
+ "designs": 300,
+ "clip_diversity": 0.2127,
+ "groups_at_0.12": 22,
+ "largest_group_share": 0.153,
+ "kmeans_best_k": 3,
+ "kmeans_silhouette": 0.26,
+ "motion": {
+  "uniformity": {
+   "mean": 0.155,
+   "median": 0.097
+  },
+  "inward": {
+   "mean": 0.052,
+   "median": 0.001
+  },
+  "speed": {
+   "mean": 3.371,
+   "median": 2.096
+  },
+  "moving": {
+   "mean": 0.914,
+   "median": 0.99
+  }
+ },
+ "streaming_inward_share": 0.277,
+ "species": {
+  "constellation": 5,
+  "flock": 24,
+  "flow": 46,
+  "grid": 34,
+  "growth": 24,
+  "ink": 68,
+  "orbit": 38,
+  "pulse": 29,
+  "waves": 32
+ },
+ "by_choice": {
+  "scale": {
+   "False": {
+    "n": 195,
+    "inward": {
+     "mean": -0.178,
+     "median": -0.01
+    },
+    "uniformity": {
+     "mean": 0.12,
+     "median": 0.028
+    },
+    "speed": {
+     "mean": 1.959,
+     "median": 1.342
+    }
+   },
+   "True": {
+    "n": 105,
+    "inward": {
+     "mean": 0.48,
+     "median": 0.575
+    },
+    "uniformity": {
+     "mean": 0.221,
+     "median": 0.173
+    },
+    "speed": {
+     "mean": 5.993,
+     "median": 5.278
+    }
+   }
+  },
+  "flow": {
+   "False": {
+    "n": 269,
+    "inward": {
+     "mean": 0.038,
+     "median": -0.0
+    },
+    "uniformity": {
+     "mean": 0.144,
+     "median": 0.07
+    },
+    "speed": {
+     "mean": 2.914,
+     "median": 1.929
+    }
+   },
+   "True": {
+    "n": 31,
+    "inward": {
+     "mean": 0.177,
+     "median": 0.204
+    },
+    "uniformity": {
+     "mean": 0.255,
+     "median": 0.18
+    },
+    "speed": {
+     "mean": 7.337,
+     "median": 5.741
+    }
+   }
+  },
+  "mode": {
+   "rings": {
+    "n": 31,
+    "inward": {
+     "mean": 0.511,
+     "median": 0.506
+    },
+    "uniformity": {
+     "mean": 0.248,
+     "median": 0.217
+    },
+    "speed": {
+     "mean": 6.023,
+     "median": 5.102
+    }
+   },
+   "trails": {
+    "n": 269,
+    "inward": {
+     "mean": -0.001,
+     "median": -0.001
+    },
+    "uniformity": {
+     "mean": 0.145,
+     "median": 0.073
+    },
+    "speed": {
+     "mean": 3.065,
+     "median": 1.96
+    }
+   }
+  },
+  "delay": {
+   "False": {
+    "n": 228,
+    "inward": {
+     "mean": -0.066,
+     "median": -0.006
+    },
+    "uniformity": {
+     "mean": 0.127,
+     "median": 0.042
+    },
+    "speed": {
+     "mean": 2.356,
+     "median": 1.596
+    }
+   },
+   "True": {
+    "n": 72,
+    "inward": {
+     "mean": 0.426,
+     "median": 0.458
+    },
+    "uniformity": {
+     "mean": 0.245,
+     "median": 0.185
+    },
+    "speed": {
+     "mean": 6.583,
+     "median": 5.948
+    }
+   }
+  },
+  "species": {
+   "constellation": {
+    "n": 5,
+    "inward": {
+     "mean": -0.001,
+     "median": -0.022
+    },
+    "uniformity": {
+     "mean": 0.065,
+     "median": 0.07
+    },
+    "speed": {
+     "mean": 0.179,
+     "median": 0.162
+    }
+   },
+   "flock": {
+    "n": 24,
+    "inward": {
+     "mean": 0.009,
+     "median": 0.01
+    },
+    "uniformity": {
+     "mean": 0.389,
+     "median": 0.355
+    },
+    "speed": {
+     "mean": 1.712,
+     "median": 1.783
+    }
+   },
+   "flow": {
+    "n": 46,
+    "inward": {
+     "mean": 0.068,
+     "median": 0.164
+    },
+    "uniformity": {
+     "mean": 0.329,
+     "median": 0.266
+    },
+    "speed": {
+     "mean": 6.981,
+     "median": 5.659
+    }
+   },
+   "grid": {
+    "n": 34,
+    "inward": {
+     "mean": 0.004,
+     "median": -0.002
+    },
+    "uniformity": {
+     "mean": 0.054,
+     "median": 0.05
+    },
+    "speed": {
+     "mean": 0.003,
+     "median": 0.002
+    }
+   },
+   "growth": {
+    "n": 24,
+    "inward": {
+     "mean": -0.598,
+     "median": -0.694
+    },
+    "uniformity": {
+     "mean": 0.307,
+     "median": 0.234
+    },
+    "speed": {
+     "mean": 2.516,
+     "median": 2.51
+    }
+   },
+   "ink": {
+    "n": 68,
+    "inward": {
+     "mean": 0.699,
+     "median": 0.802
+    },
+    "uniformity": {
+     "mean": 0.165,
+     "median": 0.156
+    },
+    "speed": {
+     "mean": 5.919,
+     "median": 5.218
+    }
+   },
+   "orbit": {
+    "n": 38,
+    "inward": {
+     "mean": -0.003,
+     "median": -0.006
+    },
+    "uniformity": {
+     "mean": 0.027,
+     "median": 0.023
+    },
+    "speed": {
+     "mean": 1.827,
+     "median": 1.778
+    }
+   },
+   "pulse": {
+    "n": 29,
+    "inward": {
+     "mean": -0.717,
+     "median": -0.767
+    },
+    "uniformity": {
+     "mean": 0.003,
+     "median": 0.002
+    },
+    "speed": {
+     "mean": 3.39,
+     "median": 1.452
+    }
+   },
+   "waves": {
+    "n": 32,
+    "inward": {
+     "mean": -0.002,
+     "median": -0.001
+    },
+    "uniformity": {
+     "mean": 0.007,
+     "median": 0.005
+    },
+    "speed": {
+     "mean": 0.546,
+     "median": 0.538
+    }
+   }
+  }
+ }
+}

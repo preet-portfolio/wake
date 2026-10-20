@@ -44,10 +44,12 @@ test("one in five numbers is an ink piece, and ink pieces fit the plot budget", 
 test("an untouched design shares as a short #n= link; an edit switches to the full state", async ({ page }) => {
     await page.goto(`/?instant&edit#n=808`);
     await page.waitForFunction(() => (window as any).wake);
-    await expect(page.locator(".number")).toHaveText("No. 808");
+    await expect(page.locator(".number")).toHaveText(/^No\. 808 · \w+$/); // number and species
     expect(page.url()).toMatch(/#n=808$/);
-    await page.locator(".knob input").first().fill("900");
-    await page.locator(".knob input").first().dispatchEvent("input");
-    await expect(page.locator(".number")).toHaveText("No. 808 · edited");
+    // move the first slider to its maximum, whatever its range
+    const knob = page.locator(".knob input").first();
+    await knob.fill(await knob.getAttribute("max") ?? "1");
+    await knob.dispatchEvent("input");
+    await expect(page.locator(".number")).toHaveText(/^No\. 808 · \w+ · edited$/);
     expect(page.url()).toContain("#s=");
 });

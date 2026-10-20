@@ -1,6 +1,8 @@
 // The wake model: a seed shape, an ordered stack of blocks, a clock, a mark
 // and a style. Everything here is plain data so it can live in the URL.
 
+import type { SpeciesKind } from "./species";
+
 export type SignalKind = "none" | "lin" | "sin" | "fade" | "noise";
 
 /** A modulation: kind, amount, period. */
@@ -90,6 +92,10 @@ export interface Live {
 
 export interface State {
     v: 1;
+    /** behaviour of the live view; absent = the block stack (classic) */
+    species?: SpeciesKind;
+    /** the species' own parameters */
+    sp?: Record<string, number>;
     live: Live;
     /** the collection number this state was generated from, if any */
     design?: number;

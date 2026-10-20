@@ -142,6 +142,11 @@ export class Renderer {
     private trailW = 0;
     private trailH = 0;
     private view: [number, number] = [WORLD, WORLD];
+    /** the world rectangle the current target shows */
+    get bounds() {
+        const [vx, vy] = this.view;
+        return { x0: WORLD / 2 - vx / 2, x1: WORLD / 2 + vx / 2, y0: WORLD / 2 - vy / 2, y1: WORLD / 2 + vy / 2 };
+    }
     private probe: { fbo: WebGLFramebuffer; tex: WebGLTexture } | null = null;
     /** half-float trail buffers where the GPU can render to them (smoother fades), else 8-bit */
     readonly floatTrails: boolean;

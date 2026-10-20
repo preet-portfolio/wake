@@ -1,5 +1,6 @@
 // The whole state lives in the URL hash as base64url JSON, so a link is a drawing.
 import { designFor } from "./design";
+import { SPECIES_INFO, type SpeciesKind } from "./species";
 import { BLOCKS, DESIGNS, WORLD, defaultState, newBlock, type Blend, type Block, type Live, type Mark, type Palette, type Param, type Seed, type SeedKind, type Signal, type SignalKind, type State, type Style } from "./model";
 
 export function encode(s: State): string {
@@ -65,8 +66,15 @@ export function sanitize(raw: Partial<State>): State {
         : undefined;
 
     const rl = (r.live ?? {}) as Partial<Live>;
+    const species = typeof r.species === "string" && Object.hasOwn(SPECIES_INFO, r.species) ? (r.species as SpeciesKind) : undefined;
+    // species parameters: a small bag of plain numbers
+    const sp: Record<string, number> = {};
+    if (r.sp && typeof r.sp === "object") {
+        for (const [k, v] of Object.entries(r.sp).slice(0, 40)) if (/^[a-z]\w{0,15}$/i.test(k)) sp[k] = num(v, -1e4, 1e4, 0);
+    }
     return {
         v: 1,
+        ...(species ? { species, sp } : {}),
         live: {
             mode: rl.mode === "rings" ? "rings" : "trails",
             trail: Math.round(num(rl.trail, 4, 600, d.live.trail)),

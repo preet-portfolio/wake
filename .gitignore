@@ -4,3 +4,6 @@ reports/playwright/
 reports/jscpd/compiled/
 test-results/
 .vercel
+reports/census/*/frames/
+reports/census/*/clips/
+reports/census/*/clip.npy

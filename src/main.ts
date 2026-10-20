@@ -3,7 +3,8 @@ import { Engine } from "./engine";
 import { Renderer } from "./gl";
 import { Sim, type Pointer } from "./sim";
 import { hexToRgb, rotateHue } from "./color";
-import { designFor, modeOf } from "./design";
+import { SPECIES_WEIGHTS, designFor, modeOf, speciesOf } from "./design";
+import { BEHAVIOURS, SPECIES_INFO } from "./species";
 import { BLOCKS, DESIGNS, WORLD, type State } from "./model";
 import { encode, sanitize, shareUrl, stateFromLocation } from "./state";
 import { Budget, budgetLines, download, stamp, svgFromLines, toSVG } from "./export";
@@ -80,7 +81,36 @@ function stillStep() {
     });
 }
 
+// a behaviour species has no "finished drawing": its still view is the live
+// simulation run for a fixed number of steps, which is deterministic
+const STILL_STEPS = 180;
+const isBehaviour = () => !!state.species && BEHAVIOURS.has(state.species);
+
 function stillFrame() {
+    if (isBehaviour()) {
+        if (dirty) {
+            dirty = false;
+            liveRestart();
+            // marks older than the trail have faded anyway: simulate those steps
+            // without drawing, then draw only the stretch that is still visible
+            const drawn = Math.min(STILL_STEPS, Math.max(20, Math.min(90, Math.round(state.live.trail * 1.5))));
+            for (let k = 0; k < STILL_STEPS - drawn; k++) sim.step(pointer, gravity);
+            for (let k = 0; k < drawn; k++) {
+                liveFade(1);
+                liveStep();
+                if (k % 15 === 14) autoExpose();
+            }
+            renderer.trailsPresent(state.style.blend === "add" || state.style.blend === "screen");
+            finished = false;
+        }
+        if (!finished) {
+            finished = true;
+            showBudget(budgetLines(sim.trace()));
+            onFinish?.();
+            onFinish = null;
+        }
+        return;
+    }
     if (dirty) { stillRestart(); dirty = false; }
     if (!engine.done) {
         const until = performance.now() + (INSTANT ? 1e9 : 9);
@@ -120,7 +150,7 @@ function liveRestart() {
     const [w, h] = canvasPx();
     const cs = Math.max(0.5, tierScale()), ts = tierScale();
     renderer.resize(Math.round(w * cs), Math.round(h * cs));
-    sim = new Sim(structuredClone(state), TIERS[tier]);
+    sim = new Sim(structuredClone(state), TIERS[tier], renderer.bounds);
     const { c0, c1 } = style();
     renderer.trailsReset(Math.round(w * ts), Math.round(h * ts), c0, c1, state.style.grain, state.seed);
     acc = 0;
@@ -252,11 +282,35 @@ function showDesign(n: number) {
     variant = "";
     commit(true, false);
 }
-const newDesign = () => showDesign(1 + Math.floor(Math.random() * DESIGNS));
+// Discovery order: a shuffled bag of species. Every common species comes up
+// once per round in random order, the rare one every third round, and the
+// first of a round is never the species already on screen.
+const ALL_SPECIES = [...SPECIES_WEIGHTS.map(([k]) => k), "ink"] as const;
+let bag: string[] = [];
+let round = 0;
+function nextSpecies(current: string | undefined): string {
+    if (!bag.length) {
+        bag = ALL_SPECIES.filter(k => k !== "constellation" || round % 3 === 0);
+        for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+        if (bag[0] === current) bag.push(bag.shift()!);
+        round++;
+    }
+    return bag.shift()!;
+}
+
+/** A random design of the next species in the bag. */
+function newDesign() {
+    const want = nextSpecies(state.design ? speciesOf(state.design) : state.species);
+    for (;;) {
+        const n = 1 + Math.floor(Math.random() * DESIGNS);
+        if (speciesOf(n) === want) return showDesign(n);
+    }
+}
 
 function renderNumber() {
     const n = state.design;
-    numberEl.textContent = n ? `No. ${n.toLocaleString("en-US")}${variant ? " · edited" : ""}` : "your own design";
+    const sp = state.species ? ` · ${SPECIES_INFO[state.species].name}` : "";
+    numberEl.textContent = n ? `No. ${n.toLocaleString("en-US")}${sp}${variant ? " · edited" : ""}` : `your own design${sp}`;
     numberEl.title = n ? `${modeOf(n) === "ink" ? "an ink piece, made for plotting" : "a colour piece"} from a collection of ${DESIGNS.toLocaleString("en-US")}` : "";
 }
 
@@ -458,14 +512,12 @@ $("#share").addEventListener("click", async () => {
 $("#png").addEventListener("click", () => canvas.toBlob(b => b && download(`wake-${stamp()}.png`, b)));
 $("#plot").addEventListener("click", () => {
     // freeze & plot: hold time still and trace the current line-heads through one lifetime
-    let lines: number[][];
-    if (VIEW === "live") {
-        if (!paused) $("#pause").click();
-        lines = sim.trace();
-    } else lines = [];
-    const svg = VIEW === "live" ? svgFromLines(lines, state.style.width, shareUrl(state)) : toSVG(state, shareUrl(state));
+    const traced = VIEW === "live" || isBehaviour();
+    if (VIEW === "live" && !paused) $("#pause").click();
+    const lines = traced ? sim.trace() : [];
+    const svg = traced ? svgFromLines(lines, state.style.width, shareUrl(state)) : toSVG(state, shareUrl(state));
     download(`wake-${stamp()}.svg`, new Blob([svg], { type: "image/svg+xml" }));
-    const b = VIEW === "live" ? budgetLines(lines) : budget.result();
+    const b = traced ? budgetLines(lines) : budget.result();
     toast(b.pass
         ? `SVG saved · about ${Math.max(1, Math.round(b.minutes))} min to plot on A4 · density ${b.coverage.toFixed(1)} ✓`
         : `SVG saved · too dense for a pen (density ${b.coverage.toFixed(1)}, limit 1.5) · try a shorter trail or fewer line-heads`);
@@ -522,7 +574,8 @@ window.wake = {
             await new Promise<void>(res => (onFinish = res));
         }
     },
-    svg: () => toSVG(state),
+    svg: () => (isBehaviour() ? svgFromLines(new Sim(state, 4000).trace(), state.style.width) : toSVG(state)),
+    speciesOf,
     // still view: draw a state up to step k right now and return a PNG (for GIFs and docs)
     snapshot(s: State, k: number, px = 360) {
         state = sanitize(s);
@@ -536,5 +589,18 @@ window.wake = {
     },
     budget: () => (VIEW === "live" ? budgetLines(sim.trace()) : budget.result()),
     fps: () => fps.value,
+    // motion census: how uniform the direction is (0 = every way, 1 = all one way),
+    // how much it streams toward the centre (-1 out, +1 in) and the mean speed in world units per step
+    motion: () => {
+        if (VIEW !== "live") return null;
+        let sx = 0, sy = 0, inward = 0, speed = 0, n = 0;
+        for (let i = 0; i < sim.n; i++) {
+            const vx = sim.x[i] - sim.px[i], vy = sim.y[i] - sim.py[i], v = Math.hypot(vx, vy);
+            if (!(v > 1e-4) || !isFinite(v)) continue;
+            const cx = WORLD / 2 - sim.x[i], cy = WORLD / 2 - sim.y[i], c = Math.hypot(cx, cy) || 1;
+            sx += vx / v; sy += vy / v; inward += (vx * cx + vy * cy) / (v * c); speed += v; n++;
+        }
+        return n ? { uniformity: Math.hypot(sx, sy) / n, inward: inward / n, speed: speed / n, moving: n / sim.n } : { uniformity: 0, inward: 0, speed: 0, moving: 0 };
+    },
     live: () => (VIEW === "live" ? { frame: sim.frame, particles: TIERS[tier], settled: tierClock.settled, exposure, paused } : null),
 };

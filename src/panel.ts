@@ -1,5 +1,6 @@
 // The editing panel: seed, block stack, time, mark, colour and ground.
 // It edits the shared state through ctx and asks the app to commit changes.
+import { SPECIES_INFO, SPECIES_PARAMS } from "./species";
 import { BLOCKS, PALETTES, newBlock, paletteRgb, type Blend, type Block, type BlockKind, type Palette, type Param, type SeedKind, type SignalKind, type State } from "./model";
 
 export interface PanelCtx {
@@ -131,23 +132,32 @@ export function buildPanel() {
     });
 
     const m = ctx.state.mark, st = ctx.state.style;
+    const kind = ctx.state.species;
+    const behaviour = kind && SPECIES_PARAMS[kind];
+    const sp = (ctx.state.sp ??= {});
+    const shapeSections = behaviour
+        ? [section(SPECIES_INFO[kind].name,
+            h("p", { class: "hint" }, SPECIES_INFO[kind].hint),
+            ...behaviour.map(([key, label, min, max, step]) => knob(label, sp[key] ?? min, min, max, step, v => (sp[key] = v))))]
+        : [section("seed", ...seedKids),
+            section("stack", h("p", { class: "hint" }, "Forces, applied top to bottom every step. Drag or ↑↓ to reorder; mute with ●."), stack, add)];
     ctx.root.replaceChildren(
-        section("seed", ...seedKids),
-        section("stack", h("p", { class: "hint" }, "Forces, applied top to bottom every step. Drag or ↑↓ to reorder; mute with ●."), stack, add),
+        ...shapeSections,
         section("motion",
-            h("div", { class: "seg" }, ...(["trails", "rings"] as const).map(m => h("button", {
+            ...(behaviour ? [] : [h("div", { class: "seg" }, ...(["trails", "rings"] as const).map(m => h("button", {
                 class: ctx.state.live.mode === m ? "on" : "",
                 title: m === "trails" ? "each line-head draws its own path" : "neighbours are joined, like the still drawing",
                 onclick: () => { ctx.state.live.mode = m; ctx.commit(true); },
-            }, m))),
-            knob("lifetime", ctx.state.steps, 1, 600, 1, v => (ctx.state.steps = v)),
+            }, m)))]),
+            ...(behaviour ? [] : [knob("lifetime", ctx.state.steps, 1, 600, 1, v => (ctx.state.steps = v))]),
             knob("trail", ctx.state.live.trail, 4, 600, 1, v => (ctx.state.live.trail = v)),
             knob("speed", ctx.state.live.speed, 0.1, 4, 0.05, v => (ctx.state.live.speed = v)),
             knob("seed", ctx.state.seed, 1, 99999, 1, v => (ctx.state.seed = v))),
-        section("mark",
+        // gaps and separate strokes belong to the block-stack drawing
+        ...(behaviour ? [] : [section("mark",
             knob("gaps", m.skip, 0, 0.95, 0.01, v => (m.skip = v)),
             h("label", { class: "check" }, Object.assign(h("input", { type: "checkbox", onchange: (e: Event) => { m.detach = (e.target as HTMLInputElement).checked; ctx.commit(true); } }), { checked: m.detach }), "separate strokes"),
-            ...(m.detach ? [knob("stroke length %", m.seglen, 10, 500, 5, v => (m.seglen = v)), knob("stroke turn", m.segrot, 0, 179, 1, v => (m.segrot = v))] : [])),
+            ...(m.detach ? [knob("stroke length %", m.seglen, 10, 500, 5, v => (m.seglen = v)), knob("stroke turn", m.segrot, 0, 179, 1, v => (m.segrot = v))] : []))]),
         section("colour",
             h("div", { class: "swatches" },
                 h("button", { class: `swatch mono${st.palette ? "" : " on"}`, title: "one ink colour", style: `background:${st.ink}`, onclick: () => { st.palette = null; ctx.commit(true); } }),

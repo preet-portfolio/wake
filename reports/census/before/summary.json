@@ -1,0 +1,179 @@
+{
+ "label": "before",
+ "designs": 300,
+ "clip_diversity": 0.1896,
+ "groups_at_0.12": 24,
+ "largest_group_share": 0.163,
+ "kmeans_best_k": 2,
+ "kmeans_silhouette": 0.228,
+ "motion": {
+  "uniformity": {
+   "mean": 0.269,
+   "median": 0.231
+  },
+  "inward": {
+   "mean": 0.377,
+   "median": 0.365
+  },
+  "speed": {
+   "mean": 5.783,
+   "median": 5.06
+  },
+  "moving": {
+   "mean": 0.983,
+   "median": 0.988
+  }
+ },
+ "streaming_inward_share": 0.613,
+ "species": {
+  "classic": 232,
+  "ink": 68
+ },
+ "by_choice": {
+  "scale": {
+   "True": {
+    "n": 300,
+    "inward": {
+     "mean": 0.377,
+     "median": 0.365
+    },
+    "uniformity": {
+     "mean": 0.269,
+     "median": 0.231
+    },
+    "speed": {
+     "mean": 5.783,
+     "median": 5.06
+    }
+   }
+  },
+  "flow": {
+   "False": {
+    "n": 163,
+    "inward": {
+     "mean": 0.48,
+     "median": 0.473
+    },
+    "uniformity": {
+     "mean": 0.23,
+     "median": 0.196
+    },
+    "speed": {
+     "mean": 5.497,
+     "median": 4.901
+    }
+   },
+   "True": {
+    "n": 137,
+    "inward": {
+     "mean": 0.254,
+     "median": 0.243
+    },
+    "uniformity": {
+     "mean": 0.316,
+     "median": 0.267
+    },
+    "speed": {
+     "mean": 6.123,
+     "median": 5.372
+    }
+   }
+  },
+  "mode": {
+   "rings": {
+    "n": 99,
+    "inward": {
+     "mean": 0.338,
+     "median": 0.327
+    },
+    "uniformity": {
+     "mean": 0.339,
+     "median": 0.27
+    },
+    "speed": {
+     "mean": 5.633,
+     "median": 4.803
+    }
+   },
+   "trails": {
+    "n": 201,
+    "inward": {
+     "mean": 0.396,
+     "median": 0.376
+    },
+    "uniformity": {
+     "mean": 0.235,
+     "median": 0.2
+    },
+    "speed": {
+     "mean": 5.857,
+     "median": 5.3
+    }
+   }
+  },
+  "delay": {
+   "False": {
+    "n": 111,
+    "inward": {
+     "mean": 0.413,
+     "median": 0.38
+    },
+    "uniformity": {
+     "mean": 0.251,
+     "median": 0.208
+    },
+    "speed": {
+     "mean": 5.322,
+     "median": 4.661
+    }
+   },
+   "True": {
+    "n": 189,
+    "inward": {
+     "mean": 0.355,
+     "median": 0.345
+    },
+    "uniformity": {
+     "mean": 0.28,
+     "median": 0.233
+    },
+    "speed": {
+     "mean": 6.054,
+     "median": 5.461
+    }
+   }
+  },
+  "species": {
+   "classic": {
+    "n": 232,
+    "inward": {
+     "mean": 0.284,
+     "median": 0.264
+    },
+    "uniformity": {
+     "mean": 0.301,
+     "median": 0.264
+    },
+    "speed": {
+     "mean": 5.763,
+     "median": 5.037
+    }
+   },
+   "ink": {
+    "n": 68,
+    "inward": {
+     "mean": 0.694,
+     "median": 0.798
+    },
+    "uniformity": {
+     "mean": 0.161,
+     "median": 0.154
+    },
+    "speed": {
+     "mean": 5.852,
+     "median": 5.18
+    }
+   }
+  }
+ }
+}
